@@ -9,7 +9,8 @@ type Menu = 'search' | 'create' | 'edit' | 'delete' | 'stats';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState<Menu>('search');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [titleSearch, setTitleSearch] = useState('');
+  const [categorySearch, setCategorySearch] = useState('すべて');
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
   const [editArticleId, setEditArticleId] = useState<number | null>(null);
   
@@ -21,6 +22,9 @@ function App() {
   
   const articles = useLiveQuery(() => db.articles.toArray()) || [];
   const allTitles = articles.map(a => a.title);
+  
+  // Extract unique categories for search dropdown
+  const uniqueCategories = Array.from(new Set(articles.flatMap(a => a.category))).sort();
 
   // Sync edit form when editArticleId changes
   useEffect(() => {
@@ -158,10 +162,11 @@ function App() {
     }, 0);
   };
 
-  const filteredArticles = articles.filter(a => 
-    a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.category.some(c => c.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredArticles = articles.filter(a => {
+    const matchesTitle = a.title.toLowerCase().includes(titleSearch.toLowerCase());
+    const matchesCategory = categorySearch === 'すべて' || a.category.includes(categorySearch);
+    return matchesTitle && matchesCategory;
+  });
 
   return (
     <div className="app-container">
@@ -201,13 +206,30 @@ function App() {
           {activeMenu === 'search' && (
             <div>
               <h2>🔍 記事を検索</h2>
-              <input 
-                type="text" 
-                placeholder="タイトルやカテゴリーで検索..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ marginBottom: '1rem' }}
-              />
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ fontSize: '0.85rem', color: '#666', display: 'block', marginBottom: '0.25rem' }}>タイトルで検索</label>
+                  <input 
+                    type="text" 
+                    placeholder="例: Python..." 
+                    value={titleSearch}
+                    onChange={(e) => setTitleSearch(e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.85rem', color: '#666', display: 'block', marginBottom: '0.25rem' }}>カテゴリーで絞り込み</label>
+                  <select 
+                    value={categorySearch}
+                    onChange={(e) => setCategorySearch(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem' }}
+                  >
+                    <option value="すべて">すべて</option>
+                    {uniqueCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               
               {selectedArticleId ? (
                 <div className="article-view">
