@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon } from 'lucide-react';
+import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff } from 'lucide-react';
 import { db } from './db';
 import { createLinks } from './utils';
+import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive } from './auth';
 import './App.css';
 
 type Menu = 'search' | 'create' | 'edit' | 'delete' | 'stats';
@@ -13,6 +14,8 @@ function App() {
   const [categorySearch, setCategorySearch] = useState('すべて');
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
   const [editArticleId, setEditArticleId] = useState<number | null>(null);
+  const [userAccount, setUserAccount] = useState<any>(null);
+  const [syncing, setSyncing] = useState(false);
   
   // Form states
   const [title, setTitle] = useState('');
@@ -25,6 +28,53 @@ function App() {
   
   // Extract unique categories for search dropdown
   const uniqueCategories = Array.from(new Set(articles.flatMap(a => a.category))).sort();
+
+  // Handle MSAL Authentication State
+  useEffect(() => {
+    const checkAccount = async () => {
+      try {
+        await msalInstance.initialize();
+        const response = await msalInstance.handleRedirectPromise();
+        if (response) {
+          setUserAccount(response.account);
+        } else {
+          const accounts = msalInstance.getAllAccounts();
+          if (accounts.length > 0) {
+            setUserAccount(accounts[0]);
+          }
+        }
+      } catch (e) {
+        console.error("Auth Error", e);
+      }
+    };
+    checkAccount();
+  }, []);
+
+  // Sync from Cloud on Login
+  useEffect(() => {
+    if (userAccount) {
+      loadFromOneDrive().then(updated => {
+        if (updated) console.log("Cloud data loaded");
+      });
+    }
+  }, [userAccount]);
+
+  // Sync to Cloud after DB change (Debounced or triggered manually/on save)
+  const triggerSync = async () => {
+    if (userAccount) {
+      setSyncing(true);
+      await syncToOneDrive();
+      setSyncing(false);
+    }
+  };
+
+  const handleLogin = () => {
+    msalInstance.loginRedirect(loginRequest);
+  };
+
+  const handleLogout = () => {
+    msalInstance.logoutRedirect();
+  };
 
   // Sync edit form when editArticleId changes
   useEffect(() => {
@@ -84,12 +134,16 @@ function App() {
       setImages([]);
       setActiveMenu('search');
     }
+    
+    // Auto sync to cloud
+    await triggerSync();
   };
 
   const handleDelete = async (id: number) => {
     if (confirm('本当に削除しますか？')) {
       await db.articles.delete(id);
       if (selectedArticleId === id) setSelectedArticleId(null);
+      await triggerSync();
     }
   };
 
@@ -132,6 +186,7 @@ function App() {
               }
             }
             alert('インポート完了しました');
+            await triggerSync();
           }
         } catch (err) {
           alert('インポートに失敗しました。ファイル形式を確認してください。');
@@ -172,6 +227,26 @@ function App() {
     <div className="app-container">
       <aside className="sidebar">
         <h1><Book /> 百科事典</h1>
+        
+        {userAccount ? (
+          <div style={{ marginBottom: '1.5rem', padding: '0.5rem', background: '#f0f4f8', borderRadius: '8px', fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <User size={16} /> <strong>{userAccount.name}</strong>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: syncing ? 'blue' : 'green', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              {syncing ? <Cloud size={14} className="animate-pulse" /> : <Cloud size={14} />} 
+              {syncing ? '同期中...' : 'OneDrive同期済み'}
+            </div>
+            <button onClick={handleLogout} className="btn" style={{ fontSize: '0.8rem', marginTop: '0.5rem', padding: '2px 8px', width: '100%' }}>
+              ログアウト
+            </button>
+          </div>
+        ) : (
+          <button onClick={handleLogin} className="nav-item" style={{ marginBottom: '1.5rem', background: '#00a4ef', color: 'white' }}>
+            <CloudOff size={20} /> MSアカウントでログイン
+          </button>
+        )}
+
         <nav className="nav-menu">
           <button className={`nav-item ${activeMenu === 'search' ? 'active' : ''}`} onClick={() => setActiveMenu('search')}>
             <Search size={20} /> 記事を検索
