@@ -23,8 +23,7 @@ export const renderMarkers = (text: string) => {
     }
     
     // Handle newlines
-    const textParts = part.split('
-');
+    const textParts = part.split('\n');
     return textParts.map((t, i) => (
       <React.Fragment key={`${index}-${i}`}>
         {t}
@@ -48,7 +47,7 @@ export const createLinks = (content: string, allTitles: string[], currentTitle: 
   }
 
   // Escape special characters for regex
-  const regexString = sortedTitles.map(t => t.replace(/[.*+?^${}()|[\]\]/g, '\$&')).join('|');
+  const regexString = sortedTitles.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const regex = new RegExp(`(${regexString})`, 'g');
 
   const parts = content.split(regex);

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, LogOut, Save, Download, Upload, Image as ImageIcon } from 'lucide-react';
-import { db, type Article } from './db';
+import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon } from 'lucide-react';
+import { db } from './db';
 import { createLinks } from './utils';
 import './App.css';
 
