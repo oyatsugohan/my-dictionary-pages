@@ -160,6 +160,25 @@ function App() {
     });
   };
 
+  const handleUrlDrop = async (html: string) => {
+    const match = html.match(/src="([^"]+)"/);
+    if (match && match[1]) {
+      const url = match[1];
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImages(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(blob);
+      } catch (err) {
+        console.error("URL drop failed", err);
+        alert("外部サイトの画像を取り込めませんでした。サイトの制限により直接のコピーが禁止されている場合があります。一度パソコンに保存してからドラッグ＆ドロップしてください。");
+      }
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleFiles(e.target.files);
   };
@@ -169,14 +188,31 @@ function App() {
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only stop dragging if we leave the window
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    handleFiles(e.dataTransfer.files);
+
+    // Switch to create menu if not in create or edit mode
+    if (activeMenu !== 'create' && activeMenu !== 'edit') {
+      setActiveMenu('create');
+      setEditArticleId(null);
+    }
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
+    } else {
+      const html = e.dataTransfer.getData('text/html');
+      if (html) {
+        handleUrlDrop(html);
+      }
+    }
   };
 
   const exportData = () => {
@@ -243,7 +279,20 @@ function App() {
   });
 
   return (
-    <div className="app-container">
+    <div 
+      className="app-container" 
+      onDragOver={handleDragOver} 
+      onDragLeave={handleDragLeave} 
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="drag-overlay">
+          <div className="drag-message">
+            <ImageIcon size={48} />
+            <p>画像をドロップして追加</p>
+          </div>
+        </div>
+      )}
       <aside className="sidebar">
         <h1><Book /> 百科事典</h1>
         
@@ -405,7 +454,7 @@ function App() {
                       onClick={() => document.getElementById('image-input')?.click()}
                     >
                       <ImageIcon size={24} style={{ marginBottom: '0.5rem' }} />
-                      <div>画像をドラッグ＆ドロップ、またはクリックして追加</div>
+                      <div>クリックして画像を選択、または画面のどこにでも画像をドロップして追加できます</div>
                       <input 
                         id="image-input"
                         type="file" 
@@ -414,6 +463,9 @@ function App() {
                         onChange={handleImageUpload} 
                         style={{ display: 'none' }} 
                       />
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.4rem', textAlign: 'center' }}>
+                      ※別のタブで開いている画像も、そのままドラッグ＆ドロップで追加可能です。
                     </div>
                     {images.length > 0 && (
                       <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: '#fff', border: '1px solid #ccc', marginTop: '0.5rem', fontSize: '0.8rem' }}>
