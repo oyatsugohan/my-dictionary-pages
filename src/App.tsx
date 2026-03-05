@@ -22,6 +22,7 @@ function App() {
   const [category, setCategory] = useState('');
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   
   const articles = useLiveQuery(() => db.articles.toArray()) || [];
   const allTitles = articles.map(a => a.title);
@@ -147,17 +148,35 @@ function App() {
     }
   };
 
+  const handleFiles = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImages(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setImages(prev => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
-      });
-    }
+    handleFiles(e.target.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFiles(e.dataTransfer.files);
   };
 
   const exportData = () => {
@@ -378,17 +397,43 @@ function App() {
                   </div>
                   <div className="form-group">
                     <label>画像</label>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <label className="btn" style={{ backgroundColor: '#eee', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
-                        <ImageIcon size={18} /> 追加
-                        <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} />
-                      </label>
-                      <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: '#fff', border: '1px solid #ccc' }}>リセット</button>
+                    <div 
+                      className={`drop-zone ${isDragging ? 'dragging' : ''}`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => document.getElementById('image-input')?.click()}
+                    >
+                      <ImageIcon size={24} style={{ marginBottom: '0.5rem' }} />
+                      <div>画像をドラッグ＆ドロップ、またはクリックして追加</div>
+                      <input 
+                        id="image-input"
+                        type="file" 
+                        accept="image/*" 
+                        multiple 
+                        onChange={handleImageUpload} 
+                        style={{ display: 'none' }} 
+                      />
                     </div>
+                    {images.length > 0 && (
+                      <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: '#fff', border: '1px solid #ccc', marginTop: '0.5rem', fontSize: '0.8rem' }}>
+                        画像をリセット ({images.length}枚)
+                      </button>
+                    )}
                     <div className="image-preview-grid">
                       {images.map((img, i) => (
                         <div key={i} className="image-preview-item">
                           <img src={img} alt="" />
+                          <button 
+                            className="btn-danger" 
+                            style={{ position: 'absolute', top: '5px', right: '5px', padding: '2px 6px', borderRadius: '50%', fontSize: '0.7rem' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setImages(prev => prev.filter((_, idx) => idx !== i));
+                            }}
+                          >
+                            ×
+                          </button>
                         </div>
                       ))}
                     </div>

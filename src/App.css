@@ -165,6 +165,24 @@ textarea {
   border-radius: 4px;
 }
 
+.drop-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  background-color: #fcfcfc;
+  transition: all 0.2s ease;
+  margin-top: 0.5rem;
+  color: #666;
+  cursor: pointer;
+}
+
+.drop-zone.dragging {
+  border-color: var(--primary-color);
+  background-color: #e8f0fe;
+  color: var(--primary-color);
+}
+
 /* Markers */
 .marker-tools {
   display: flex;
