@@ -424,7 +424,7 @@ function App() {
 
           {(activeMenu === 'create' || activeMenu === 'edit') && (
             <div>
-              <h2>{editArticleId ? '📝 記事を編集' : '➕ 新規記事作成'}</h2>
+              <h2>{activeMenu === 'edit' ? '📝 記事を編集' : '➕ 新規記事作成'}</h2>
               
               {activeMenu === 'edit' && !editArticleId ? (
                 <div className="article-grid">
@@ -438,7 +438,7 @@ function App() {
                 <div className="form">
                   <div className="form-group">
                     <label>記事タイトル</label>
-                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例: Python" />
+                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="記事タイトルを書く欄" />
                   </div>
                   <div className="form-group">
                     <label>カテゴリー (カンマ区切り)</label>
@@ -452,6 +452,15 @@ function App() {
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
                       onClick={() => document.getElementById('image-input')?.click()}
+                      style={{ 
+                        border: '2px dashed #ccc', 
+                        padding: '20px', 
+                        textAlign: 'center', 
+                        borderRadius: '8px', 
+                        cursor: 'pointer',
+                        backgroundColor: '#f9f9f9',
+                        marginBottom: '10px'
+                      }}
                     >
                       <ImageIcon size={24} style={{ marginBottom: '0.5rem' }} />
                       <div>クリックして画像を選択、または画面のどこにでも画像をドロップして追加できます</div>
@@ -464,21 +473,20 @@ function App() {
                         style={{ display: 'none' }} 
                       />
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.4rem', textAlign: 'center' }}>
-                      ※別のタブで開いている画像も、そのままドラッグ＆ドロップで追加可能です。
-                    </div>
                     {images.length > 0 && (
-                      <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: '#fff', border: '1px solid #ccc', marginTop: '0.5rem', fontSize: '0.8rem' }}>
-                        画像をリセット ({images.length}枚)
-                      </button>
+                      <div style={{ marginBottom: '10px' }}>
+                        <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: '0.8rem', padding: '5px 10px' }}>
+                          全画像をリセット ({images.length}枚)
+                        </button>
+                      </div>
                     )}
                     <div className="image-preview-grid">
                       {images.map((img, i) => (
-                        <div key={i} className="image-preview-item">
-                          <img src={img} alt="" />
+                        <div key={i} className="image-preview-item" style={{ position: 'relative', display: 'inline-block', margin: '5px' }}>
+                          <img src={img} alt="" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px' }} />
                           <button 
                             className="btn-danger" 
-                            style={{ position: 'absolute', top: '5px', right: '5px', padding: '2px 6px', borderRadius: '50%', fontSize: '0.7rem' }}
+                            style={{ position: 'absolute', top: '2px', right: '2px', padding: '0 5px', borderRadius: '50%', border: 'none', cursor: 'pointer' }}
                             onClick={(e) => {
                               e.stopPropagation();
                               setImages(prev => prev.filter((_, idx) => idx !== i));
