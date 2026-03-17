@@ -8,7 +8,7 @@ const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || "YOUR_CLIENT_ID_HERE";
 
 const msalConfig: Configuration = {
   auth: {
-    clientId: clientId,
+    clientId: clientId === "YOUR_CLIENT_ID_HERE" ? "00000000-0000-0000-0000-000000000000" : clientId,
     authority: "https://login.microsoftonline.com/common",
     // Use the base path from Vite config
     redirectUri: window.location.origin + "/my-dictionary-pages/",
@@ -24,6 +24,10 @@ export const msalInstance = new PublicClientApplication(msalConfig);
 let initializationPromise: Promise<void> | null = null;
 
 export const ensureInitialized = async () => {
+  if (clientId === "YOUR_CLIENT_ID_HERE") {
+    console.warn("Microsoft Auth: Client ID is not configured. Cloud sync will not work.");
+    return;
+  }
   if (!initializationPromise) {
     initializationPromise = msalInstance.initialize();
   }
