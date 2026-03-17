@@ -3,10 +3,14 @@ import { Client } from "@microsoft/microsoft-graph-client";
 import { db } from "./db";
 
 // Microsoft Auth Config
+// Note: clientId should ideally be in .env as VITE_MSAL_CLIENT_ID
+const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || "YOUR_CLIENT_ID_HERE";
+
 const msalConfig: Configuration = {
   auth: {
-    clientId: "YOUR_CLIENT_ID_HERE", // Azure Portalで取得したクライアントIDに書き換えてください
+    clientId: clientId,
     authority: "https://login.microsoftonline.com/common",
+    // Use the base path from Vite config
     redirectUri: window.location.origin + "/my-dictionary-pages/",
   },
   cache: {
@@ -15,6 +19,16 @@ const msalConfig: Configuration = {
 };
 
 export const msalInstance = new PublicClientApplication(msalConfig);
+
+// Keep track of initialization to avoid calling methods before it's ready
+let initializationPromise: Promise<void> | null = null;
+
+export const ensureInitialized = async () => {
+  if (!initializationPromise) {
+    initializationPromise = msalInstance.initialize();
+  }
+  await initializationPromise;
+};
 
 export const loginRequest: RedirectRequest = {
   scopes: ["User.Read", "Files.ReadWrite.AppFolder"],
@@ -31,6 +45,7 @@ const getGraphClient = (accessToken: string) => {
 
 // Sync with OneDrive
 export const syncToOneDrive = async () => {
+  await ensureInitialized();
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length === 0) return;
 
@@ -57,6 +72,7 @@ export const syncToOneDrive = async () => {
 
 // Load from OneDrive
 export const loadFromOneDrive = async () => {
+  await ensureInitialized();
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length === 0) return;
 
@@ -80,6 +96,7 @@ export const loadFromOneDrive = async () => {
     if (Array.isArray(data)) {
       await db.articles.clear();
       for (const item of data) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, ...rest } = item;
         await db.articles.add(rest);
       }

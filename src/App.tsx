@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff } from 'lucide-react';
+import { type AccountInfo } from '@azure/msal-browser';
 import { db } from './db';
 import { createLinks } from './utils';
-import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive } from './auth';
+import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive, ensureInitialized } from './auth';
 import './App.css';
 
 type Menu = 'search' | 'create' | 'edit' | 'delete' | 'stats';
@@ -14,7 +15,7 @@ function App() {
   const [categorySearch, setCategorySearch] = useState('すべて');
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
   const [editArticleId, setEditArticleId] = useState<number | null>(null);
-  const [userAccount, setUserAccount] = useState<any>(null);
+  const [userAccount, setUserAccount] = useState<AccountInfo | null>(null);
   const [syncing, setSyncing] = useState(false);
   
   // Form states
@@ -34,7 +35,7 @@ function App() {
   useEffect(() => {
     const checkAccount = async () => {
       try {
-        await msalInstance.initialize();
+        await ensureInitialized();
         const response = await msalInstance.handleRedirectPromise();
         if (response) {
           setUserAccount(response.account);
@@ -69,11 +70,13 @@ function App() {
     }
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    await ensureInitialized();
     msalInstance.loginRedirect(loginRequest);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await ensureInitialized();
     msalInstance.logoutRedirect();
   };
 
@@ -93,7 +96,8 @@ function App() {
       setContent('');
       setImages([]);
     }
-  }, [editArticleId, articles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editArticleId]); // Remove 'articles' from dependency to avoid cascading renders
 
   const handleSave = async () => {
     if (!title || !content) {
@@ -236,6 +240,7 @@ function App() {
             // Simple validation: check if it looks like articles
             for (const item of data) {
               if (item.title && item.content) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { id, ...rest } = item; // remove old ID
                 await db.articles.add(rest);
               }
@@ -243,7 +248,7 @@ function App() {
             alert('インポート完了しました');
             await triggerSync();
           }
-        } catch (err) {
+        } catch {
           alert('インポートに失敗しました。ファイル形式を確認してください。');
         }
       };
