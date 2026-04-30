@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff, HelpCircle, ExternalLink } from 'lucide-react';
+import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff, HelpCircle, ExternalLink, Sun, Moon, RefreshCw, Clock } from 'lucide-react';
 import { type AccountInfo } from '@azure/msal-browser';
 import { db } from './db';
 import { createLinks } from './utils';
@@ -17,10 +17,15 @@ function App() {
   const [editArticleId, setEditArticleId] = useState<number | null>(null);
   const [userAccount, setUserAccount] = useState<AccountInfo | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark' || 
+           (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
   
   // Form states
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
+  const [categoryList, setCategoryList] = useState<string[]>([]);
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -28,8 +33,59 @@ function App() {
   const articles = useLiveQuery(() => db.articles.toArray()) || [];
   const allTitles = articles.map(a => a.title);
   
+  // Apply dark mode class to body
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
+
   // Extract unique categories for search dropdown
   const uniqueCategories = Array.from(new Set(articles.flatMap(a => a.category))).sort();
+
+  // Helper for dashboard
+  const recentlyUpdated = [...articles]
+    .sort((a, b) => {
+      const timeA = new Date(a.updated || a.created).getTime();
+      const timeB = new Date(b.updated || b.created).getTime();
+      return timeB - timeA;
+    })
+    .slice(0, 4);
+
+  const [randomArticleId, setRandomArticleId] = useState<number | null>(null);
+  
+  useEffect(() => {
+    if (articles.length > 0 && !randomArticleId) {
+      const randomIdx = Math.floor(Math.random() * articles.length);
+      setRandomArticleId(articles[randomIdx].id || null);
+    }
+  }, [articles, randomArticleId]);
+
+  const refreshRandom = () => {
+    if (articles.length > 1) {
+      let nextId = randomArticleId;
+      while (nextId === randomArticleId) {
+        const randomIdx = Math.floor(Math.random() * articles.length);
+        nextId = articles[randomIdx].id || null;
+      }
+      setRandomArticleId(nextId);
+    }
+  };
+
+  const handleAddCategory = () => {
+    if (category.trim() && !categoryList.includes(category.trim())) {
+      setCategoryList([...categoryList, category.trim()]);
+      setCategory('');
+    }
+  };
+
+  const removeCategory = (cat: string) => {
+    setCategoryList(categoryList.filter(c => c !== cat));
+  };
 
   // Handle MSAL Authentication State
   useEffect(() => {
@@ -86,12 +142,14 @@ function App() {
       const art = articles.find(a => a.id === editArticleId);
       if (art) {
         setTitle(art.title);
-        setCategory(art.category.join(', '));
+        setCategoryList(art.category);
+        setCategory('');
         setContent(art.content);
         setImages(art.images);
       }
     } else {
       setTitle('');
+      setCategoryList([]);
       setCategory('');
       setContent('');
       setImages([]);
@@ -105,13 +163,13 @@ function App() {
       return;
     }
 
-    const categories = category.split(',').map(c => c.trim()).filter(c => c !== '');
+    const categories = categoryList.length > 0 ? categoryList : ['未分類'];
     const now = new Date().toLocaleString();
 
     if (editArticleId) {
       await db.articles.update(editArticleId, {
         title,
-        category: categories.length > 0 ? categories : ['未分類'],
+        category: categories,
         content,
         images,
         updated: now
@@ -127,13 +185,14 @@ function App() {
       }
       await db.articles.add({
         title,
-        category: categories.length > 0 ? categories : ['未分類'],
+        category: categories,
         content,
         images,
         created: now
       });
       alert('保存しました');
       setTitle('');
+      setCategoryList([]);
       setCategory('');
       setContent('');
       setImages([]);
@@ -278,9 +337,14 @@ function App() {
   };
 
   const filteredArticles = articles.filter(a => {
-    const matchesTitle = a.title.toLowerCase().includes(titleSearch.toLowerCase());
-    const matchesCategory = categorySearch === 'すべて' || a.category.includes(categorySearch);
-    return matchesTitle && matchesCategory;
+    const searchLower = titleSearch.toLowerCase();
+    const matchesTitle = a.title.toLowerCase().includes(searchLower);
+    const matchesContent = a.content.toLowerCase().includes(searchLower);
+    const matchesCategorySearch = a.category.some(c => c.toLowerCase().includes(searchLower));
+    
+    const matchesCategoryFilter = categorySearch === 'すべて' || a.category.includes(categorySearch);
+    
+    return (matchesTitle || matchesContent || matchesCategorySearch) && matchesCategoryFilter;
   });
 
   return (
@@ -321,7 +385,7 @@ function App() {
         )}
 
         <nav className="nav-menu">
-          <button className={`nav-item ${activeMenu === 'search' ? 'active' : ''}`} onClick={() => setActiveMenu('search')}>
+          <button className={`nav-item ${activeMenu === 'search' ? 'active' : ''}`} onClick={() => { setActiveMenu('search'); setSelectedArticleId(null); }}>
             <Search size={20} /> 記事を検索
           </button>
           <button className={`nav-item ${activeMenu === 'create' ? 'active' : ''}`} onClick={() => { setActiveMenu('create'); setEditArticleId(null); }}>
@@ -338,6 +402,11 @@ function App() {
           </button>
           <button className={`nav-item ${activeMenu === 'setup' ? 'active' : ''}`} onClick={() => setActiveMenu('setup')}>
             <HelpCircle size={20} /> Azure 連携設定
+          </button>
+          
+          <button className="nav-item" onClick={() => setDarkMode(!darkMode)} style={{ marginTop: '0.5rem' }}>
+            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+            {darkMode ? 'ライトモード' : 'ダークモード'}
           </button>
         </nav>
         
@@ -359,10 +428,10 @@ function App() {
               <h2>🔍 記事を検索</h2>
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ flex: 2 }}>
-                  <label style={{ fontSize: '0.85rem', color: '#666', display: 'block', marginBottom: '0.25rem' }}>タイトルで検索</label>
+                  <label style={{ fontSize: '0.85rem', color: '#666', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
                   <input 
                     type="text" 
-                    placeholder="例: Python..." 
+                    placeholder="例: Python, 使い方..." 
                     value={titleSearch}
                     onChange={(e) => setTitleSearch(e.target.value)}
                   />
@@ -372,7 +441,7 @@ function App() {
                   <select 
                     value={categorySearch}
                     onChange={(e) => setCategorySearch(e.target.value)}
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem' }}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
                   >
                     <option value="すべて">すべて</option>
                     {uniqueCategories.map(cat => (
@@ -397,11 +466,11 @@ function App() {
                       
                       <div className="article-images" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
                         {articles.find(a => a.id === selectedArticleId)?.images.map((img, i) => (
-                          <img key={i} src={img} alt="" style={{ maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                          <img key={i} src={img} alt="" style={{ maxHeight: '300px', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
                         ))}
                       </div>
                       
-                      <div className="article-body" style={{ lineHeight: '1.6', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }}>
+                      <div className="article-body" style={{ lineHeight: '1.8', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }}>
                         {createLinks(
                           articles.find(a => a.id === selectedArticleId)?.content || '',
                           allTitles,
@@ -416,16 +485,70 @@ function App() {
                   )}
                 </div>
               ) : (
-                <div className="article-grid">
-                  {filteredArticles.map(art => (
-                    <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)}>
-                      <h3 style={{ margin: '0 0 0.5rem 0' }}>{art.title}</h3>
-                      <div style={{ fontSize: '0.85rem', color: '#666' }}>
-                        {art.category.slice(0, 2).join(', ')}{art.category.length > 2 ? '...' : ''}
-                      </div>
+                <>
+                  {!titleSearch && categorySearch === 'すべて' && (
+                    <div className="dashboard-sections">
+                      <section className="dashboard-section">
+                        <h3><Clock size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} /> 最近更新された記事</h3>
+                        <div className="article-grid">
+                          {recentlyUpdated.map(art => (
+                            <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)}>
+                              <h3 style={{ margin: '0 0 0.5rem 0' }}>{art.title}</h3>
+                              <div style={{ fontSize: '0.8rem', color: '#888' }}>
+                                {art.updated || art.created}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      {randomArticleId && (
+                        <section className="dashboard-section" style={{ marginTop: '2rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3>📅 今日のピックアップ</h3>
+                            <button onClick={refreshRandom} className="btn-icon" title="別の記事を表示">
+                              <RefreshCw size={16} />
+                            </button>
+                          </div>
+                          {articles.find(a => a.id === randomArticleId) && (
+                            <div className="article-card random-card" onClick={() => setSelectedArticleId(randomArticleId)}>
+                              <h3>{articles.find(a => a.id === randomArticleId)?.title}</h3>
+                              <p style={{ 
+                                display: '-webkit-box', 
+                                WebkitLineClamp: 3, 
+                                WebkitBoxOrient: 'vertical', 
+                                overflow: 'hidden',
+                                fontSize: '0.9rem',
+                                color: '#666',
+                                marginTop: '0.5rem'
+                              }}>
+                                {articles.find(a => a.id === randomArticleId)?.content}
+                              </p>
+                            </div>
+                          )}
+                        </section>
+                      )}
+                      
+                      <h3 style={{ marginTop: '2rem' }}>📚 全ての記事一覧</h3>
                     </div>
-                  ))}
-                </div>
+                  )}
+                  
+                  <div className="article-grid">
+                    {filteredArticles.map(art => (
+                      <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)}>
+                        <h3 style={{ margin: '0 0 0.5rem 0' }}>{art.title}</h3>
+                        <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                          {art.category.slice(0, 2).join(', ')}{art.category.length > 2 ? '...' : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {filteredArticles.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+                      記事が見つかりませんでした。
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -449,8 +572,25 @@ function App() {
                     <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="記事タイトルを書く欄" />
                   </div>
                   <div className="form-group">
-                    <label>カテゴリー (カンマ区切り)</label>
-                    <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="例: 技術, プログラミング" />
+                    <label>カテゴリー</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <input 
+                        type="text" 
+                        value={category} 
+                        onChange={(e) => setCategory(e.target.value)} 
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                        placeholder="例: 技術 (入力してEnter)" 
+                      />
+                      <button className="btn btn-primary" onClick={handleAddCategory}>追加</button>
+                    </div>
+                    <div className="tag-container">
+                      {categoryList.map(cat => (
+                        <span key={cat} className="tag-chip">
+                          {cat}
+                          <button onClick={() => removeCategory(cat)}>&times;</button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label>画像</label>
@@ -460,15 +600,6 @@ function App() {
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
                       onClick={() => document.getElementById('image-input')?.click()}
-                      style={{ 
-                        border: '2px dashed #ccc', 
-                        padding: '20px', 
-                        textAlign: 'center', 
-                        borderRadius: '8px', 
-                        cursor: 'pointer',
-                        backgroundColor: '#f9f9f9',
-                        marginBottom: '10px'
-                      }}
                     >
                       <ImageIcon size={24} style={{ marginBottom: '0.5rem' }} />
                       <div>クリックして画像を選択、または画面のどこにでも画像をドロップして追加できます</div>
@@ -483,43 +614,48 @@ function App() {
                     </div>
                     {images.length > 0 && (
                       <div style={{ marginBottom: '10px' }}>
-                        <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: '0.8rem', padding: '5px 10px' }}>
+                        <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', fontSize: '0.8rem', padding: '5px 10px', color: 'var(--text-color)' }}>
                           全画像をリセット ({images.length}枚)
                         </button>
                       </div>
                     )}
                     <div className="image-preview-grid">
                       {images.map((img, i) => (
-                        <div key={i} className="image-preview-item" style={{ position: 'relative', display: 'inline-block', margin: '5px' }}>
-                          <img src={img} alt="" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px' }} />
+                        <div key={i} className="image-preview-item">
+                          <img src={img} alt="" />
                           <button 
                             className="btn-danger" 
-                            style={{ position: 'absolute', top: '2px', right: '2px', padding: '0 5px', borderRadius: '50%', border: 'none', cursor: 'pointer' }}
+                            style={{ position: 'absolute', top: '2px', right: '2px', padding: '0 6px', borderRadius: '50%', border: 'none', cursor: 'pointer', height: '20px', width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             onClick={(e) => {
                               e.stopPropagation();
                               setImages(prev => prev.filter((_, idx) => idx !== i));
                             }}
                           >
-                            ×
+                            &times;
                           </button>
                         </div>
                       ))}
                     </div>
                   </div>
                   <div className="form-group">
-                    <label>記事内容</label>
-                    <div className="marker-tools">
-                      <button onClick={() => insertMarker('yellow')} className="marker-btn" style={{ backgroundColor: '#ffeb3b' }}>黄マーカー</button>
-                      <button onClick={() => insertMarker('green')} className="marker-btn" style={{ backgroundColor: '#8bc34a' }}>緑マーカー</button>
-                      <button onClick={() => insertMarker('blue')} className="marker-btn" style={{ backgroundColor: '#03a9f4', color: 'white' }}>青マーカー</button>
-                      <button onClick={() => insertMarker('red')} className="marker-btn" style={{ backgroundColor: '#f44336', color: 'white' }}>赤マーカー</button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+                      <label style={{ margin: 0 }}>記事内容 (Markdown対応)</label>
+                      <div className="marker-tools">
+                        <button onClick={() => insertMarker('yellow')} className="marker-btn" style={{ backgroundColor: '#ffeb3b', color: '#333' }}>黄</button>
+                        <button onClick={() => insertMarker('green')} className="marker-btn" style={{ backgroundColor: '#8bc34a', color: '#333' }}>緑</button>
+                        <button onClick={() => insertMarker('blue')} className="marker-btn" style={{ backgroundColor: '#03a9f4', color: 'white' }}>青</button>
+                        <button onClick={() => insertMarker('red')} className="marker-btn" style={{ backgroundColor: '#f44336', color: 'white' }}>赤</button>
+                      </div>
                     </div>
                     <textarea 
                       id="content-area"
                       value={content} 
                       onChange={(e) => setContent(e.target.value)} 
-                      placeholder="内容を入力してください... <yellow>重要な部分</yellow> のようにマーカーを使えます。"
+                      placeholder="# 見出し1&#10;## 見出し2&#10;- 箇条書き&#10;**太字**&#10;&#10;<yellow>重要な部分</yellow>"
                     />
+                    <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
+                      💡 Markdown記法（# や - など）が使えます。
+                    </div>
                   </div>
                   <button className="btn btn-primary" onClick={handleSave} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
                     <Save size={20} /> {editArticleId ? '更新を保存' : '記事を保存'}
@@ -582,7 +718,7 @@ function App() {
                 )
                 .sort((a, b) => b[1] - a[1])
                 .map(([cat, count]) => (
-                  <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '4px', border: '1px solid #eee' }}>
+                  <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'var(--card-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                     <span>{cat}</span>
                     <span style={{ fontWeight: 'bold' }}>{count} 件</span>
                   </div>
