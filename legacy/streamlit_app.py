@@ -6,6 +6,7 @@ import base64
 from datetime import datetime
 from io import BytesIO
 from PIL import Image
+from typing import Optional
 import os
 import re
 
@@ -16,7 +17,6 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() 
 DB_FILE = os.environ.get("ENCYCLOPEDIA_DB_PATH", os.path.join(_SCRIPT_DIR, "encyclopedia.db"))
 print(f"📂 DB保存先: {os.path.abspath(DB_FILE)}")
 
-# 画像の最大表示幅（サムネイル用）
 THUMBNAIL_MAX_WIDTH = 800
 
 # ─────────────────────────────────────────────
@@ -52,7 +52,7 @@ def init_db():
         return conn
     except Exception as e:
         print(f"❌ データベース初期化エラー: {e}")
-        st.error(f"データベース初期化エラー: {e}")
+        # 【修正②】init_db内でst.errorを呼ばない（set_page_config競合を防ぐ）
         return None
 
 def get_db_connection():
@@ -75,16 +75,13 @@ def get_db_connection():
 # ─────────────────────────────────────────────
 # 認証
 # ─────────────────────────────────────────────
-
-# 【修正①】bcryptが使えない環境向けに hashlib.pbkdf2_hmac を使用。
-#          SHA-256単体よりも総当たり攻撃に対して大幅に強化。
 def hash_password(password: str, username: str) -> str:
     """PBKDF2-HMAC-SHA256でパスワードをハッシュ化する（ソルト = username）。"""
     dk = hashlib.pbkdf2_hmac(
         "sha256",
         password.encode("utf-8"),
-        username.encode("utf-8"),   # ソルトとしてユーザー名を使用
-        iterations=260_000,         # NIST推奨値（2023年）
+        username.encode("utf-8"),
+        iterations=260_000,
     )
     return dk.hex()
 
@@ -120,13 +117,10 @@ def authenticate_user(username: str, password: str) -> bool:
         stored_hash = result[0]
         new_hash = hash_password(password, username)
 
-        # 新方式（PBKDF2）で照合
         if stored_hash == new_hash:
             return True
 
-        # 旧方式（SHA-256 ソルトあり）の移行
         old_hash_salted = hashlib.sha256(f"{username}:{password}".encode()).hexdigest()
-        # 旧方式（SHA-256 ソルトなし）の移行
         old_hash_plain = hashlib.sha256(password.encode()).hexdigest()
 
         if stored_hash in (old_hash_salted, old_hash_plain):
@@ -143,10 +137,10 @@ def authenticate_user(username: str, password: str) -> bool:
 # ─────────────────────────────────────────────
 # 画像ユーティリティ
 # ─────────────────────────────────────────────
-
-def encode_image(image_file) -> str | None:
-    """アップロード済みファイルをBase64文字列に変換する。
-    最大幅を THUMBNAIL_MAX_WIDTH に抑えてDBの肥大化を緩和する。"""
+# 【修正①③】str | None → Optional[str]、Image.Image | None → Optional[Image.Image]
+#            Python 3.9 以前でも動作するように変更
+def encode_image(image_file) -> Optional[str]:
+    """アップロード済みファイルをBase64文字列に変換する。"""
     if image_file is None:
         return None
     try:
@@ -158,7 +152,12 @@ def encode_image(image_file) -> str | None:
                 Image.Resampling.LANCZOS,
             )
         buffered = BytesIO()
-        fmt = img.format or "PNG"
+        # 【修正④】img.formatがNoneの場合はPNGにフォールバック
+        fmt = img.format if img.format else "PNG"
+        # RGBAはJPEGに保存できないのでPNGに変換
+        if fmt == "JPEG" and img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            fmt = "JPEG"
         save_kwargs = {"format": fmt, "optimize": True}
         if fmt == "JPEG":
             save_kwargs["quality"] = 92
@@ -168,7 +167,7 @@ def encode_image(image_file) -> str | None:
         st.warning(f"画像の変換に失敗しました: {e}")
         return None
 
-def decode_image(base64_string: str) -> Image.Image | None:
+def decode_image(base64_string: str) -> Optional[Image.Image]:
     if base64_string:
         try:
             return Image.open(BytesIO(base64.b64decode(base64_string)))
@@ -196,8 +195,7 @@ def render_markers_to_html(text: str) -> str:
     text = text.replace("\n", "<br>")
     return text
 
-def create_article_links(content: str, all_titles: list[str], current_title: str) -> str:
-    """本文中に登場する他記事タイトルを太字にしてマーカー変換を適用する。"""
+def create_article_links(content: str, all_titles: list, current_title: str) -> str:
     linked = content
     sorted_titles = sorted(
         [t for t in all_titles if t != current_title],
@@ -238,10 +236,10 @@ def get_user_encyclopedia(username: str) -> dict:
 def save_article(
     username: str,
     title: str,
-    category: list[str],
+    category: list,
     content: str,
-    images: list[str],
-    created: str | None = None,
+    images: list,
+    created: Optional[str] = None,
 ) -> bool:
     conn = get_db_connection()
     if conn is None:
@@ -289,7 +287,7 @@ def delete_article(username: str, title: str) -> bool:
 # ─────────────────────────────────────────────
 # バックアップ・リストア
 # ─────────────────────────────────────────────
-def backup_database() -> str | None:
+def backup_database() -> Optional[str]:
     if not os.path.exists(DB_FILE):
         return None
     import shutil
@@ -299,7 +297,7 @@ def backup_database() -> str | None:
     shutil.copy(DB_FILE, backup_file)
     return backup_file
 
-def find_backup_files() -> list[dict]:
+def find_backup_files() -> list:
     home_dir = os.path.expanduser("~")
     backups = []
     try:
@@ -339,7 +337,7 @@ def restore_from_backup(backup_path: str) -> bool:
 # ─────────────────────────────────────────────
 # ヘルパー：カテゴリー文字列 → リスト
 # ─────────────────────────────────────────────
-def parse_categories(text: str) -> list[str]:
+def parse_categories(text: str) -> list:
     cats = [c.strip() for c in text.split(",") if c.strip()]
     return cats or ["未分類"]
 
@@ -348,8 +346,8 @@ def categories_to_str(cats) -> str:
         return ", ".join(cats)
     return cats or ""
 
-def collect_all_categories(encyclopedia: dict) -> list[str]:
-    cats: set[str] = set()
+def collect_all_categories(encyclopedia: dict) -> list:
+    cats = set()
     for article in encyclopedia.values():
         c = article.get("category", ["未分類"])
         cats.update(c if isinstance(c, list) else [c])
@@ -359,7 +357,6 @@ def collect_all_categories(encyclopedia: dict) -> list[str]:
 # ヘルパー：マーカーボタン UI
 # ─────────────────────────────────────────────
 def show_marker_buttons(key_prefix: str):
-    """マーカー挿入ヒントボタンを表示し、クリックされたメッセージを返す。"""
     cols = st.columns(4)
     labels = [
         ("🟨 黄色マーカー", "<yellow>文字</yellow>"),
@@ -373,8 +370,10 @@ def show_marker_buttons(key_prefix: str):
                 st.info(f"囲みたい文字を `{tag}` の形式で入力してください")
 
 # ─────────────────────────────────────────────
-# アプリ設定
+# アプリ設定（最初のStreamlit呼び出し）
 # ─────────────────────────────────────────────
+# 【修正①②】st.set_page_config を全ての関数定義の直後・
+#            セッション初期化より前に配置（他のst呼び出しより必ず先）
 st.set_page_config(page_title="オリジナル百科事典", page_icon="📚", layout="wide")
 
 st.markdown("""
@@ -392,6 +391,8 @@ if "db_initialized" not in st.session_state:
     if conn:
         st.session_state.db_conn = conn
         st.session_state.db_initialized = True
+    else:
+        st.error("⚠️ データベースの初期化に失敗しました。ページを再読み込みしてください。")
 
 for key, default in [
     ("logged_in", False),
@@ -500,7 +501,6 @@ else:
     )
     st.markdown("---")
 
-    # ─── サイドバー ───────────────────────────
     with st.sidebar:
         st.header("メニュー")
         menu = st.radio(
@@ -521,9 +521,7 @@ else:
             else:
                 st.info("まだ記事がありません")
 
-    # ─────────────────────────────────────────
     # 🔍 記事を検索
-    # ─────────────────────────────────────────
     if menu == "🔍 記事を検索":
         st.header("記事を検索")
         enc = get_user_encyclopedia(st.session_state.username)
@@ -599,13 +597,10 @@ else:
                     else:
                         st.info("この記事では他の記事への言及はありません")
 
-    # ─────────────────────────────────────────
     # ➕ 新規記事作成
-    # ─────────────────────────────────────────
     elif menu == "➕ 新規記事作成":
         st.header("新規記事作成")
 
-        # 【修正②】保存成功後にフォームをリセットするためのキーを管理する
         if "new_article_form_key" not in st.session_state:
             st.session_state.new_article_form_key = 0
         form_key = st.session_state.new_article_form_key
@@ -673,7 +668,6 @@ else:
 
                 if save_article(st.session_state.username, title, parse_categories(category), content, images_data):
                     st.session_state.encyclopedia = get_user_encyclopedia(st.session_state.username)
-                    # 【修正②】フォームキーをインクリメントして全入力欄をリセット
                     st.session_state.new_article_form_key += 1
                     st.success(f"✅ 記事「{title}」を保存しました！")
                     st.balloons()
@@ -681,9 +675,7 @@ else:
                 else:
                     st.error("記事の保存に失敗しました")
 
-    # ─────────────────────────────────────────
     # 📝 記事を編集
-    # ─────────────────────────────────────────
     elif menu == "📝 記事を編集":
         st.header("記事を編集")
         enc = get_user_encyclopedia(st.session_state.username)
@@ -769,7 +761,6 @@ else:
                             with new_img_cols[i % 3]:
                                 st.image(f, caption=f"新しい画像 {i+1}")
 
-                    # 【修正③】「すべての画像を削除」チェックボックスを保存処理に正しく反映
                     delete_all_images = st.checkbox(
                         "🗑️ すべての画像を削除する",
                         key=f"delete_all_img_{article_to_edit}",
@@ -796,7 +787,6 @@ else:
                         elif not new_content:
                             st.error("記事内容を入力してください")
                         else:
-                            # 【修正③】delete_all_images フラグを保存処理に反映
                             if delete_all_images:
                                 images_data = []
                             else:
@@ -829,9 +819,7 @@ else:
                             else:
                                 st.error("記事の更新に失敗しました")
 
-    # ─────────────────────────────────────────
     # 🗑️ 記事を削除
-    # ─────────────────────────────────────────
     elif menu == "🗑️ 記事を削除":
         st.header("記事を削除")
         enc = get_user_encyclopedia(st.session_state.username)
@@ -864,9 +852,7 @@ else:
                         else:
                             st.error("削除に失敗しました")
 
-    # ─────────────────────────────────────────
     # 📊 統計情報
-    # ─────────────────────────────────────────
     elif menu == "📊 統計情報":
         st.header("統計情報")
         enc = get_user_encyclopedia(st.session_state.username)
@@ -891,7 +877,7 @@ else:
 
             st.markdown("---")
             st.subheader("カテゴリー別記事数")
-            category_count: dict[str, int] = {}
+            category_count = {}
             for article in enc.values():
                 cats = article.get("category", ["未分類"])
                 for cat in (cats if isinstance(cats, list) else [cats]):
