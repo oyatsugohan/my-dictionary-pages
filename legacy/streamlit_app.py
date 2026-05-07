@@ -140,24 +140,31 @@ def authenticate_user(username: str, password: str) -> bool:
 # 【修正①③】str | None → Optional[str]、Image.Image | None → Optional[Image.Image]
 #            Python 3.9 以前でも動作するように変更
 def encode_image(image_file) -> Optional[str]:
-    """アップロード済みファイルをBase64文字列に変換する。"""
+    """アップロード済みファイルをBase64文字列に変換する。
+    ファイルポインタの問題を防ぐため、最初にbytesとして読み込む。"""
     if image_file is None:
         return None
     try:
-        img = Image.open(image_file)
+        # 【修正】ファイルポインタを先頭に戻してから全バイトを読み込む
+        # → Pillowのlazy loadingやStreamlitの内部処理による
+        #   ポインタのズレを完全に排除する
+        image_file.seek(0)
+        raw_bytes = image_file.read()
+        img = Image.open(BytesIO(raw_bytes))
+        # フォーマットをopen直後に確定させる（resize後はNoneになるため）
+        fmt = img.format if img.format else "PNG"
+        img.load()  # lazy loadingを強制解決してファイル参照を切り離す
+
         if img.width > THUMBNAIL_MAX_WIDTH:
             ratio = THUMBNAIL_MAX_WIDTH / img.width
             img = img.resize(
                 (THUMBNAIL_MAX_WIDTH, int(img.height * ratio)),
                 Image.Resampling.LANCZOS,
             )
-        buffered = BytesIO()
-        # 【修正④】img.formatがNoneの場合はPNGにフォールバック
-        fmt = img.format if img.format else "PNG"
-        # RGBAはJPEGに保存できないのでPNGに変換
+        # RGBAはJPEGに保存できないのでRGBに変換
         if fmt == "JPEG" and img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-            fmt = "JPEG"
+        buffered = BytesIO()
         save_kwargs = {"format": fmt, "optimize": True}
         if fmt == "JPEG":
             save_kwargs["quality"] = 92
@@ -660,11 +667,15 @@ else:
                 st.error("記事内容を入力してください")
             else:
                 images_data = []
+                seen_hashes = set()
                 for img_file in (uploaded_images or []):
-                    img_file.seek(0)
                     encoded = encode_image(img_file)
                     if encoded:
-                        images_data.append(encoded)
+                        # 【修正】同じ画像が複数回選択された場合の重複を除去
+                        img_hash = hashlib.md5(encoded.encode()).hexdigest()
+                        if img_hash not in seen_hashes:
+                            seen_hashes.add(img_hash)
+                            images_data.append(encoded)
 
                 if save_article(st.session_state.username, title, parse_categories(category), content, images_data):
                     st.session_state.encyclopedia = get_user_encyclopedia(st.session_state.username)
@@ -795,11 +806,18 @@ else:
                                     if i not in st.session_state[delete_key]
                                 ]
 
+                            # 【修正】新規追加画像の重複除去（既存画像との重複も含む）
+                            seen_hashes = {
+                                hashlib.md5(img.encode()).hexdigest()
+                                for img in images_data
+                            }
                             for img_file in (uploaded_images or []):
-                                img_file.seek(0)
                                 encoded = encode_image(img_file)
                                 if encoded:
-                                    images_data.append(encoded)
+                                    img_hash = hashlib.md5(encoded.encode()).hexdigest()
+                                    if img_hash not in seen_hashes:
+                                        seen_hashes.add(img_hash)
+                                        images_data.append(encoded)
 
                             if new_title != article_to_edit:
                                 delete_article(st.session_state.username, article_to_edit)
