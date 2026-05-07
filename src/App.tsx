@@ -217,7 +217,11 @@ function App() {
       if (!file.type.startsWith('image/')) return;
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImages(prev => [...prev, reader.result as string]);
+        const result = reader.result as string;
+        setImages(prev => {
+          if (prev.includes(result)) return prev;
+          return [...prev, result];
+        });
       };
       reader.readAsDataURL(file);
     });
@@ -232,7 +236,11 @@ function App() {
         const blob = await response.blob();
         const reader = new FileReader();
         reader.onloadend = () => {
-          setImages(prev => [...prev, reader.result as string]);
+          const result = reader.result as string;
+          setImages(prev => {
+            if (prev.includes(result)) return prev;
+            return [...prev, result];
+          });
         };
         reader.readAsDataURL(blob);
       } catch (err) {
@@ -248,6 +256,7 @@ function App() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
   };
 
@@ -260,6 +269,7 @@ function App() {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
 
     // Switch to create menu if not in create or edit mode
@@ -594,7 +604,7 @@ function App() {
                   </div>
                   <div className="form-group">
                     <label>画像</label>
-                    <div 
+                    <div
                       className={`drop-zone ${isDragging ? 'dragging' : ''}`}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
@@ -603,15 +613,15 @@ function App() {
                     >
                       <ImageIcon size={24} style={{ marginBottom: '0.5rem' }} />
                       <div>クリックして画像を選択、または画面のどこにでも画像をドロップして追加できます</div>
-                      <input 
-                        id="image-input"
-                        type="file" 
-                        accept="image/*" 
-                        multiple 
-                        onChange={handleImageUpload} 
-                        style={{ display: 'none' }} 
-                      />
                     </div>
+                    <input
+                      id="image-input"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      style={{ display: 'none' }}
+                    />
                     {images.length > 0 && (
                       <div style={{ marginBottom: '10px' }}>
                         <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', fontSize: '0.8rem', padding: '5px 10px', color: 'var(--text-color)' }}>
