@@ -24,14 +24,15 @@ export const msalInstance = new PublicClientApplication(msalConfig);
 let initializationPromise: Promise<void> | null = null;
 
 export const ensureInitialized = async () => {
-  if (clientId === "YOUR_CLIENT_ID_HERE") {
-    console.warn("Microsoft Auth: Client ID is not configured. Cloud sync will not work.");
-    return;
-  }
   if (!initializationPromise) {
     initializationPromise = msalInstance.initialize();
   }
   await initializationPromise;
+
+  if (clientId === "YOUR_CLIENT_ID_HERE") {
+    console.warn("Microsoft Auth: Client ID is not configured. Cloud sync will not work.");
+    return;
+  }
 };
 
 export const loginRequest: RedirectRequest = {
