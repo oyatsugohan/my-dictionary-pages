@@ -25,11 +25,16 @@ let initializationPromise: Promise<void> | null = null;
 
 export const ensureInitialized = async () => {
   if (!initializationPromise) {
-    initializationPromise = msalInstance.initialize();
+    try {
+      initializationPromise = msalInstance.initialize();
+    } catch (error) {
+      console.error("MSAL Initialize Error:", error);
+      initializationPromise = Promise.resolve();
+    }
   }
   await initializationPromise;
 
-  if (clientId === "YOUR_CLIENT_ID_HERE") {
+  if (clientId === "YOUR_CLIENT_ID_HERE" || clientId === "00000000-0000-0000-0000-000000000000") {
     console.warn("Microsoft Auth: Client ID is not configured. Cloud sync will not work.");
     return;
   }
