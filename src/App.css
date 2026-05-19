@@ -132,6 +132,8 @@ textarea {
   cursor: pointer;
   border: none;
   transition: opacity 0.2s;
+  background-color: var(--hover-bg);
+  color: var(--text-color);
 }
 
 .btn-primary {
@@ -291,7 +293,7 @@ body.dark-mode .article-card:hover {
 }
 
 .stat-card {
-  background: white;
+  background: var(--card-bg);
   padding: 1.5rem;
   border-radius: 8px;
   text-align: center;
