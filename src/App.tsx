@@ -376,7 +376,7 @@ function App() {
         <h1><Book /> 百科事典</h1>
         
         {userAccount ? (
-          <div style={{ marginBottom: '1.5rem', padding: '0.5rem', background: '#f0f4f8', borderRadius: '8px', fontSize: '0.9rem' }}>
+          <div style={{ marginBottom: '1.5rem', padding: '0.5rem', background: 'var(--hover-bg)', borderRadius: '8px', fontSize: '0.9rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
               <User size={16} /> <strong>{userAccount.name}</strong>
             </div>

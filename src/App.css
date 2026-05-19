@@ -306,7 +306,7 @@ body.dark-mode .article-card:hover {
 
 /* Setup Guide Styles */
 .setup-guide {
-  background: white;
+  background: var(--card-bg);
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.05);
@@ -314,10 +314,14 @@ body.dark-mode .article-card:hover {
   margin: 0 auto;
 }
 
+body.dark-mode .setup-guide {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
 .setup-step {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color);
 }
 
 .setup-step h3 {
@@ -351,6 +355,12 @@ body.dark-mode .article-card:hover {
   word-break: break-all;
   user-select: all;
   color: #333;
+}
+
+body.dark-mode .code-block {
+  background: #1e1e1e;
+  border-color: var(--border-color);
+  color: var(--text-color);
 }
 
 .link {
