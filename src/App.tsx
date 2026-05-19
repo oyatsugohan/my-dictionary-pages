@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff, HelpCircle, ExternalLink, Sun, Moon, RefreshCw, Clock } from 'lucide-react';
+import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff, ExternalLink, Sun, Moon, RefreshCw, Clock, Sparkles, Settings as SettingsIcon } from 'lucide-react';
 import { type AccountInfo } from '@azure/msal-browser';
 import { db } from './db';
 import { createLinks } from './utils';
 import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive, ensureInitialized } from './auth';
+import { getArticleSuggestions } from './ai';
 import './App.css';
 
 type Menu = 'search' | 'create' | 'edit' | 'delete' | 'stats' | 'setup';
@@ -21,6 +22,11 @@ function App() {
     return localStorage.getItem('theme') === 'dark' || 
            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
+  
+  // AI states
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   
   // Form states
   const [title, setTitle] = useState('');
@@ -74,6 +80,38 @@ function App() {
       }
       setRandomArticleId(nextId);
     }
+  };
+
+  // Persist Gemini API Key
+  useEffect(() => {
+    localStorage.setItem('gemini_api_key', geminiApiKey);
+  }, [geminiApiKey]);
+
+  const handleFetchAiSuggestions = async () => {
+    if (!geminiApiKey) {
+      alert('Gemini APIキーを設定してください。');
+      setActiveMenu('setup');
+      return;
+    }
+    setIsLoadingSuggestions(true);
+    try {
+      const suggestions = await getArticleSuggestions(allTitles, uniqueCategories, geminiApiKey);
+      setAiSuggestions(suggestions);
+    } catch (err) {
+      alert('提案の取得に失敗しました。APIキーを確認してください。');
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  const handleApplySuggestion = (suggestedTitle: string) => {
+    setActiveMenu('create');
+    setEditArticleId(null);
+    setTitle(suggestedTitle);
+    setCategoryList([]);
+    setCategory('');
+    setContent('');
+    setImages([]);
   };
 
   const handleAddCategory = () => {
@@ -407,11 +445,11 @@ function App() {
           <button className={`nav-item ${activeMenu === 'delete' ? 'active' : ''}`} onClick={() => setActiveMenu('delete')}>
             <Trash2 size={20} /> 記事を削除
           </button>
-          <button className={`nav-item ${activeMenu === 'stats' ? 'active' : ''}`} onClick={() => setActiveMenu('stats')}>
+          <button className={`nav-item ${activeMenu === 'stats' ? 'active' : ''}`} onClick={() => { setActiveMenu('stats'); setSelectedArticleId(null); }}>
             <BarChart2 size={20} /> 統計情報
           </button>
-          <button className={`nav-item ${activeMenu === 'setup' ? 'active' : ''}`} onClick={() => setActiveMenu('setup')}>
-            <HelpCircle size={20} /> Azure 連携設定
+          <button className={`nav-item ${activeMenu === 'setup' ? 'active' : ''}`} onClick={() => { setActiveMenu('setup'); setSelectedArticleId(null); }}>
+            <SettingsIcon size={20} /> アプリ設定
           </button>
           
           <button className="nav-item" onClick={() => setDarkMode(!darkMode)} style={{ marginTop: '0.5rem' }}>
@@ -538,6 +576,40 @@ function App() {
                           )}
                         </section>
                       )}
+
+                      <section className="dashboard-section" style={{ marginTop: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <h3><Sparkles size={18} style={{ verticalAlign: 'middle', marginRight: '8px', color: '#8e44ad' }} /> AIからの記事提案</h3>
+                          <button 
+                            onClick={handleFetchAiSuggestions} 
+                            className="btn btn-primary" 
+                            style={{ padding: '4px 12px', fontSize: '0.85rem' }}
+                            disabled={isLoadingSuggestions}
+                          >
+                            {isLoadingSuggestions ? '考え中...' : '提案を取得'}
+                          </button>
+                        </div>
+                        
+                        {!geminiApiKey ? (
+                          <div className="alert-box">
+                            Gemini APIキーを設定すると、AIがあなたの百科事典に基づいた新しい記事の案を提案してくれます。設定メニューから設定してください。
+                          </div>
+                        ) : (
+                          <div className="ai-suggestions-grid">
+                            {aiSuggestions.length > 0 ? (
+                              aiSuggestions.map((suggestion, i) => (
+                                <div key={i} className="suggestion-chip" onClick={() => handleApplySuggestion(suggestion)}>
+                                  <PlusCircle size={14} /> {suggestion}
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
+                                「提案を取得」ボタンを押すと、AIが次の記事の候補を提案します。
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </section>
                       
                       <h3 style={{ marginTop: '2rem' }}>📚 全ての記事一覧</h3>
                     </div>
@@ -739,54 +811,76 @@ function App() {
 
           {activeMenu === 'setup' && (
             <div className="setup-guide">
-              <h2><HelpCircle size={24} style={{ verticalAlign: 'middle', marginRight: '8px' }} /> Azure 連携設定ガイド</h2>
-              <p>Microsoft アカウントでログインし、OneDrive と同期するための設定手順です。</p>
+              <h2><SettingsIcon size={24} style={{ verticalAlign: 'middle', marginRight: '8px' }} /> アプリ設定</h2>
+              
+              <section className="setup-step" style={{ borderTop: 'none', paddingTop: 0 }}>
+                <h3>🤖 AI提案機能 (Gemini API)</h3>
+                <p>Google Gemini APIを使用して、記事のタイトル提案を受けることができます。</p>
+                <div className="form-group">
+                  <label>Gemini API キー</label>
+                  <input 
+                    type="password" 
+                    value={geminiApiKey} 
+                    onChange={(e) => setGeminiApiKey(e.target.value)} 
+                    placeholder="AI APIキーを入力..." 
+                  />
+                  <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '8px' }}>
+                    ※ キーはブラウザ内(localStorage)にのみ保存されます。<br />
+                    APIキーは <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="link">Google AI Studio</a> で無料で取得できます。
+                  </p>
+                </div>
+              </section>
 
-              <div className="setup-step">
-                <h3>1. Azure Portal でアプリを登録する</h3>
-                <p>
-                  <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener noreferrer" className="link">
-                    Azure Portal (アプリの登録) <ExternalLink size={14} style={{ marginLeft: '4px' }} />
-                  </a> 
-                  を開き、「新規登録」をクリックします。
-                </p>
-                <ul className="setup-list">
-                  <li><strong>名前:</strong> 「My Dictionary Pages」など任意</li>
-                  <li><strong>サポートされているアカウントの種類:</strong> 「任意の組織のディレクトリ内のアカウントと、個人の Microsoft アカウント」を選択</li>
-                  <li><strong>リダイレクト URI:</strong> 「シングルページ アプリケーション (SPA)」を選択し、以下を入力します：
-                    <div className="code-block">{window.location.origin}/my-dictionary-pages/</div>
-                  </li>
-                </ul>
-              </div>
+              <section className="setup-step">
+                <h3>☁️ OneDrive 連携設定 (Azure)</h3>
+                <p>Microsoft アカウントでログインし、OneDrive と同期するための設定手順です。</p>
 
-              <div className="setup-step">
-                <h3>2. クライアント ID を取得する</h3>
-                <p>登録完了後、画面に表示される<strong>「アプリケーション (クライアント) ID」</strong>をコピーします。</p>
-              </div>
+                <div className="setup-step" style={{ borderTop: 'none', marginTop: '1rem' }}>
+                  <h4>1. Azure Portal でアプリを登録する</h4>
+                  <p>
+                    <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener noreferrer" className="link">
+                      Azure Portal (アプリの登録) <ExternalLink size={14} style={{ marginLeft: '4px' }} />
+                    </a> 
+                    を開き、「新規登録」をクリックします。
+                  </p>
+                  <ul className="setup-list">
+                    <li><strong>名前:</strong> 「My Dictionary Pages」など任意</li>
+                    <li><strong>サポートされているアカウントの種類:</strong> 「任意の組織のディレクトリ内のアカウントと、個人の Microsoft アカウント」を選択</li>
+                    <li><strong>リダイレクト URI:</strong> 「シングルページ アプリケーション (SPA)」を選択し、以下を入力します：
+                      <div className="code-block">{window.location.origin}/my-dictionary-pages/</div>
+                    </li>
+                  </ul>
+                </div>
 
-              <div className="setup-step">
-                <h3>3. API 権限を設定する</h3>
-                <p>左メニューの「API のアクセス許可」から「アクセス許可の追加」をクリックします。</p>
-                <ul className="setup-list">
-                  <li><strong>Microsoft Graph</strong> を選択</li>
-                  <li><strong>委任されたアクセス許可</strong> を選択</li>
-                  <li>以下の権限を検索してチェックを入れ、「アクセス許可の追加」をクリックします：
-                    <ul className="setup-sub-list">
-                      <li><code>User.Read</code> (基本プロファイル)</li>
-                      <li><code>Files.ReadWrite.AppFolder</code> (アプリ専用フォルダへの保存)</li>
-                    </ul>
-                  </li>
-                </ul>
-              </div>
+                <div className="setup-step">
+                  <h4>2. クライアント ID を取得する</h4>
+                  <p>登録完了後、画面に表示される<strong>「アプリケーション (クライアント) ID」</strong>をコピーします。</p>
+                </div>
 
-              <div className="setup-step">
-                <h3>4. アプリにクライアント ID を設定する</h3>
-                <p>プロジェクトのルートディレクトリに <code>.env</code> ファイルを作成し、取得した ID を貼り付けます。</p>
-                <div className="code-block">VITE_MSAL_CLIENT_ID=コピーしたクライアントID</div>
-                <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '12px' }}>
-                  ※ <code>.env</code> ファイルを保存した後は、開発サーバーを再起動（Ctrl+C のあと npm run dev）してください。
-                </p>
-              </div>
+                <div className="setup-step">
+                  <h4>3. API 権限を設定する</h4>
+                  <p>左メニューの「API のアクセス許可」から「アクセス許可の追加」をクリックします。</p>
+                  <ul className="setup-list">
+                    <li><strong>Microsoft Graph</strong> を選択</li>
+                    <li><strong>委任されたアクセス許可</strong> を選択</li>
+                    <li>以下の権限を検索してチェックを入れ、「アクセス許可の追加」をクリックします：
+                      <ul className="setup-sub-list">
+                        <li><code>User.Read</code> (基本プロファイル)</li>
+                        <li><code>Files.ReadWrite.AppFolder</code> (アプリ専用フォルダへの保存)</li>
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="setup-step">
+                  <h4>4. アプリにクライアント ID を設定する</h4>
+                  <p>プロジェクトのルートディレクトリに <code>.env</code> ファイルを作成し、取得した ID を貼り付けます。</p>
+                  <div className="code-block">VITE_MSAL_CLIENT_ID=コピーしたクライアントID</div>
+                  <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '12px' }}>
+                    ※ <code>.env</code> ファイルを保存した後は、開発サーバーを再起動（Ctrl+C のあと npm run dev）してください。
+                  </p>
+                </div>
+              </section>
             </div>
           )}
         </div>
