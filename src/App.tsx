@@ -518,7 +518,7 @@ function App() {
                         ))}
                       </div>
                       
-                      <div className="article-body" style={{ lineHeight: '1.8', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }}>
+                      <div className="article-body" style={{ lineHeight: '1.8', fontSize: '1.1rem' }}>
                         {createLinks(
                           articles.find(a => a.id === selectedArticleId)?.content || '',
                           allTitles,
@@ -739,6 +739,23 @@ function App() {
                       💡 Markdown記法（# や - など）が使えます。
                     </div>
                   </div>
+
+                  <div className="form-group">
+                    <label>👁️ プレビュー</label>
+                    <div className="article-body" style={{ 
+                      padding: '1rem', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '4px', 
+                      minHeight: '100px',
+                      backgroundColor: 'var(--bg-color)'
+                    }}>
+                      {createLinks(content, allTitles, title, (t) => {
+                        const target = articles.find(a => a.title === t);
+                        if (target?.id) setSelectedArticleId(target.id);
+                      })}
+                    </div>
+                  </div>
+
                   <button className="btn btn-primary" onClick={handleSave} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
                     <Save size={20} /> {editArticleId ? '更新を保存' : '記事を保存'}
                   </button>

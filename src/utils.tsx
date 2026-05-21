@@ -36,68 +36,48 @@ export const createLinks = (content: string, allTitles: string[], currentTitle: 
     .filter(t => t !== currentTitle)
     .sort((a, b) => b.length - a.length);
 
-  if (sortedTitles.length === 0) {
-    return <ReactMarkdown components={{
-      p: ({ children }) => <p>{renderMarkers(children as string)}</p>,
-      li: ({ children }) => <li>{renderMarkers(children as string)}</li>,
-    }}>{content}</ReactMarkdown>;
-  }
-
   // Escape special characters for regex
-  const regexString = sortedTitles.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-  const regex = new RegExp(`(${regexString})`, 'g');
+  const regexString = sortedTitles.length > 0 
+    ? sortedTitles.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+    : null;
+  const regex = regexString ? new RegExp(`(${regexString})`, 'g') : null;
 
-  // Pre-process content to handle links before markdown
-  // This is a bit tricky with markdown, so we'll do a simple replacement for now
-  // and let ReactMarkdown handle the rest if possible, or just use a custom renderer.
-  
+  const processText = (text: string) => {
+    if (!regex) return renderMarkers(text);
+
+    const parts = text.split(regex);
+    return parts.flatMap((part, i) => {
+      if (sortedTitles.includes(part)) {
+        return [
+          <strong 
+            key={`link-${i}`} 
+            onClick={() => onLinkClick(part)}
+            style={{ cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}
+          >
+            {part}
+          </strong>
+        ];
+      }
+      return renderMarkers(part);
+    });
+  };
+
+  const renderChildren = (children: React.ReactNode): React.ReactNode => {
+    return React.Children.map(children, child => {
+      if (typeof child === 'string') {
+        return processText(child);
+      }
+      // If it's a React element with its own children (like strong, em), 
+      // we could recursively process it, but for now just keep it as is.
+      return child;
+    });
+  };
+
   return (
     <ReactMarkdown 
       components={{
-        p: ({ children }) => {
-          if (typeof children !== 'string') return <p>{children}</p>;
-          const parts = children.split(regex);
-          return (
-            <p>
-              {parts.map((part, i) => {
-                if (sortedTitles.includes(part)) {
-                  return (
-                    <strong 
-                      key={i} 
-                      onClick={() => onLinkClick(part)}
-                      style={{ cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}
-                    >
-                      {part}
-                    </strong>
-                  );
-                }
-                return <React.Fragment key={i}>{renderMarkers(part)}</React.Fragment>;
-              })}
-            </p>
-          );
-        },
-        li: ({ children }) => {
-          if (typeof children !== 'string') return <li>{children}</li>;
-          const parts = children.split(regex);
-          return (
-            <li>
-              {parts.map((part, i) => {
-                if (sortedTitles.includes(part)) {
-                  return (
-                    <strong 
-                      key={i} 
-                      onClick={() => onLinkClick(part)}
-                      style={{ cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}
-                    >
-                      {part}
-                    </strong>
-                  );
-                }
-                return <React.Fragment key={i}>{renderMarkers(part)}</React.Fragment>;
-              })}
-            </li>
-          );
-        }
+        p: ({ children }) => <p>{renderChildren(children)}</p>,
+        li: ({ children }) => <li>{renderChildren(children)}</li>,
       }}
     >
       {content}

@@ -298,6 +298,33 @@ body.dark-mode .article-card:hover {
   font-style: italic;
 }
 
+.article-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.article-body code {
+  background-color: var(--hover-bg);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.article-body pre {
+  background-color: var(--hover-bg);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.article-body pre code {
+  padding: 0;
+  background-color: transparent;
+}
+
 /* Stats */
 .stats-grid {
   display: grid;
