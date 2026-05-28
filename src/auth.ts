@@ -3,12 +3,18 @@ import { Client } from "@microsoft/microsoft-graph-client";
 import { db } from "./db";
 
 // Microsoft Auth Config
-// Note: clientId should ideally be in .env as VITE_MSAL_CLIENT_ID
-const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || "YOUR_CLIENT_ID_HERE";
+// Priority: localStorage > .env > fallback
+const getClientId = () => {
+  const stored = localStorage.getItem('msal_client_id');
+  if (stored) return stored;
+  const env = import.meta.env.VITE_MSAL_CLIENT_ID;
+  if (env && env !== "YOUR_CLIENT_ID_HERE") return env;
+  return "00000000-0000-0000-0000-000000000000";
+};
 
 const msalConfig: Configuration = {
   auth: {
-    clientId: clientId === "YOUR_CLIENT_ID_HERE" ? "00000000-0000-0000-0000-000000000000" : clientId,
+    clientId: getClientId(),
     authority: "https://login.microsoftonline.com/common",
     // Use the base path from Vite config
     redirectUri: window.location.origin + "/my-dictionary-pages/",
@@ -19,6 +25,14 @@ const msalConfig: Configuration = {
 };
 
 export const msalInstance = new PublicClientApplication(msalConfig);
+
+// Re-initialize MSAL if the client ID changes
+export const reconfigureMsal = async (newClientId: string) => {
+  localStorage.setItem('msal_client_id', newClientId);
+  // In a real SPA, we might need to reload or carefully re-instantiate.
+  // For simplicity here, we'll advise a reload or just update the config if possible.
+  window.location.reload(); 
+};
 
 // Keep track of initialization to avoid calling methods before it's ready
 let initializationPromise: Promise<void> | null = null;
@@ -34,7 +48,10 @@ export const ensureInitialized = async () => {
   }
   await initializationPromise;
 
-  if (clientId === "YOUR_CLIENT_ID_HERE" || clientId === "00000000-0000-0000-0000-000000000000") {
+  const config = msalInstance.getConfiguration();
+  const currentClientId = config.auth.clientId;
+
+  if (!currentClientId || currentClientId === "00000000-0000-0000-0000-000000000000") {
     console.warn("Microsoft Auth: Client ID is not configured. Cloud sync will not work.");
     return;
   }

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff, ExternalLink, Sun, Moon, RefreshCw, Clock, Sparkles, Settings as SettingsIcon } from 'lucide-react';
+import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff, ExternalLink, Sun, Moon, RefreshCw, Clock, Sparkles, Settings as SettingsIcon, CheckCircle } from 'lucide-react';
 import { type AccountInfo } from '@azure/msal-browser';
 import { db } from './db';
 import { createLinks } from './utils';
-import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive, ensureInitialized } from './auth';
+import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive, ensureInitialized, reconfigureMsal } from './auth';
 import { getArticleSuggestions } from './ai';
 import './App.css';
 
@@ -27,6 +27,13 @@ function App() {
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  // MSAL states
+  const [msalClientId, setMsalClientId] = useState(() => {
+    const stored = localStorage.getItem('msal_client_id');
+    if (stored) return stored;
+    return '';
+  });
   
   // Form states
   const [title, setTitle] = useState('');
@@ -165,6 +172,11 @@ function App() {
   };
 
   const handleLogin = async () => {
+    if (!isMsalConfigured) {
+      alert('OneDrive同期を利用するには、アプリ設定から「クライアントID」を設定する必要があります。');
+      setActiveMenu('setup');
+      return;
+    }
     await ensureInitialized();
     msalInstance.loginRedirect(loginRequest);
   };
@@ -299,7 +311,6 @@ function App() {
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Only stop dragging if we leave the window
     if (e.currentTarget === e.target) {
       setIsDragging(false);
     }
@@ -310,7 +321,6 @@ function App() {
     e.stopPropagation();
     setIsDragging(false);
 
-    // Switch to create menu if not in create or edit mode
     if (activeMenu !== 'create' && activeMenu !== 'edit') {
       setActiveMenu('create');
       setEditArticleId(null);
@@ -344,11 +354,10 @@ function App() {
         try {
           const data = JSON.parse(event.target?.result as string);
           if (Array.isArray(data)) {
-            // Simple validation: check if it looks like articles
             for (const item of data) {
               if (item.title && item.content) {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { id, ...rest } = item; // remove old ID
+                const { id, ...rest } = item;
                 await db.articles.add(rest);
               }
             }
@@ -377,7 +386,6 @@ function App() {
     const newContent = `${before}<${color}>${selected}</${color}>${after}`;
     setContent(newContent);
     
-    // Reset focus and selection
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(start + color.length + 2, end + color.length + 2);
@@ -394,6 +402,19 @@ function App() {
     
     return (matchesTitle || matchesContent || matchesCategorySearch) && matchesCategoryFilter;
   });
+
+  const handleSaveMsalId = () => {
+    if (!msalClientId.trim()) {
+      alert('クライアントIDを入力してください。');
+      return;
+    }
+    if (confirm('クライアントIDを保存してアプリを再読み込みしますか？')) {
+      reconfigureMsal(msalClientId.trim());
+    }
+  };
+
+  const currentClientId = msalInstance.getConfiguration().auth.clientId;
+  const isMsalConfigured = currentClientId && currentClientId !== "00000000-0000-0000-0000-000000000000";
 
   return (
     <div 
@@ -849,52 +870,92 @@ function App() {
               </section>
 
               <section className="setup-step">
-                <h3>☁️ OneDrive 連携設定 (Azure)</h3>
-                <p>Microsoft アカウントでログインし、OneDrive と同期するための設定手順です。</p>
+                <h3>☁️ OneDrive 連携設定 (バックアップと同期)</h3>
+                <p>
+                  Microsoft アカウントでログインすると、あなたの百科事典データが自動的に OneDrive へ保存されます。<br />
+                  同じ設定を他のパソコンやスマホで行えば、<strong>どこでも同じデータを見たり編集したりできます。</strong>
+                </p>
+
+                <div style={{ marginTop: '1.5rem', padding: '1rem', background: isMsalConfigured ? '#e6fffa' : '#fff5f5', borderRadius: '8px', border: `1px solid ${isMsalConfigured ? '#38a169' : '#e53e3e'}`, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {isMsalConfigured ? <Cloud size={24} color="#38a169" /> : <CloudOff size={24} color="#e53e3e" />}
+                  <div>
+                    <strong>ステータス: {isMsalConfigured ? '設定済み' : '未設定'}</strong>
+                    <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                      {isMsalConfigured ? 'クラウド同期が利用可能です。' : '以下の手順に沿って設定を行ってください。'}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="setup-step" style={{ borderTop: 'none', marginTop: '1rem' }}>
-                  <h4>1. Azure Portal でアプリを登録する</h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ background: 'var(--primary-color)', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>1</div>
+                    <h4 style={{ margin: 0 }}>Azure Portal でアプリを登録する</h4>
+                  </div>
                   <p>
                     <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener noreferrer" className="link">
-                      Azure Portal (アプリの登録) <ExternalLink size={14} style={{ marginLeft: '4px' }} />
+                      Azure Portal (アプリの登録) <ExternalLink size={14} />
                     </a> 
-                    を開き、「新規登録」をクリックします。
+                    を開き、<strong>「新規登録」</strong>をクリックします。
                   </p>
                   <ul className="setup-list">
-                    <li><strong>名前:</strong> 「My Dictionary Pages」など任意</li>
-                    <li><strong>サポートされているアカウントの種類:</strong> 「任意の組織のディレクトリ内のアカウントと、個人の Microsoft アカウント」を選択</li>
-                    <li><strong>リダイレクト URI:</strong> 「シングルページ アプリケーション (SPA)」を選択し、以下を入力します：
-                      <div className="code-block">{window.location.origin}/my-dictionary-pages/</div>
-                    </li>
+                    <li><strong>名前:</strong> 「My Dictionary Pages」など（何でもOK）</li>
+                    <li><strong>サポートされているアカウントの種類:</strong> <br />「任意の組織のディレクトリ内のアカウントと、個人の Microsoft アカウント」を選択</li>
                   </ul>
                 </div>
 
                 <div className="setup-step">
-                  <h4>2. クライアント ID を取得する</h4>
-                  <p>登録完了後、画面に表示される<strong>「アプリケーション (クライアント) ID」</strong>をコピーします。</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ background: 'var(--primary-color)', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>2</div>
+                    <h4 style={{ margin: 0 }}>リダイレクト URI を設定する</h4>
+                  </div>
+                  <p>
+                    「リダイレクト URI」の項目で、<strong>「シングルページ アプリケーション (SPA)」</strong>を選択し、以下の URL を入力してください。
+                  </p>
+                  <div className="code-block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{window.location.origin}/my-dictionary-pages/</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/my-dictionary-pages/`);
+                        alert('コピーしました！');
+                      }}
+                      style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                    >
+                      コピー
+                    </button>
+                  </div>
                 </div>
 
                 <div className="setup-step">
-                  <h4>3. API 権限を設定する</h4>
-                  <p>左メニューの「API のアクセス許可」から「アクセス許可の追加」をクリックします。</p>
-                  <ul className="setup-list">
-                    <li><strong>Microsoft Graph</strong> を選択</li>
-                    <li><strong>委任されたアクセス許可</strong> を選択</li>
-                    <li>以下の権限を検索してチェックを入れ、「アクセス許可の追加」をクリックします：
-                      <ul className="setup-sub-list">
-                        <li><code>User.Read</code> (基本プロファイル)</li>
-                        <li><code>Files.ReadWrite.AppFolder</code> (アプリ専用フォルダへの保存)</li>
-                      </ul>
-                    </li>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ background: 'var(--primary-color)', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>3</div>
+                    <h4 style={{ margin: 0 }}>クライアント ID をアプリに入力する</h4>
+                  </div>
+                  <p>
+                    登録完了後に表示される<strong>「アプリケーション (クライアント) ID」</strong>をコピーして、下の欄に貼り付けて保存してください。
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input 
+                      type="text" 
+                      value={msalClientId} 
+                      onChange={(e) => setMsalClientId(e.target.value)} 
+                      placeholder="ここにクライアントIDを貼り付け..." 
+                    />
+                    <button className="btn btn-primary" onClick={handleSaveMsalId}>保存</button>
+                  </div>
+                </div>
+
+                <div className="setup-step">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ background: 'var(--primary-color)', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>4</div>
+                    <h4 style={{ margin: 0 }}>API 権限を設定する</h4>
+                  </div>
+                  <p>左メニューの<strong>「API のアクセス許可」</strong>→「アクセス許可の追加」→「Microsoft Graph」→「委任されたアクセス許可」の順に進み、以下の 2 つを検索して追加してください。</p>
+                  <ul className="setup-list" style={{ listStyle: 'none', paddingLeft: 0 }}>
+                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="green" /> <code>User.Read</code></li>
+                    <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="green" /> <code>Files.ReadWrite.AppFolder</code></li>
                   </ul>
-                </div>
-
-                <div className="setup-step">
-                  <h4>4. アプリにクライアント ID を設定する</h4>
-                  <p>プロジェクトのルートディレクトリに <code>.env</code> ファイルを作成し、取得した ID を貼り付けます。</p>
-                  <div className="code-block">VITE_MSAL_CLIENT_ID=コピーしたクライアントID</div>
-                  <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '12px' }}>
-                    ※ <code>.env</code> ファイルを保存した後は、開発サーバーを再起動（Ctrl+C のあと npm run dev）してください。
+                  <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '10px' }}>
+                    ※ 追加後、「(自分の名前) に管理者の同意を与えます」というボタンがあれば、それをクリックするとスムーズです（必須ではありません）。
                   </p>
                 </div>
               </section>
