@@ -940,7 +940,8 @@ function App() {
                     <h4 style={{ margin: 0 }}>クライアント ID をアプリに入力する</h4>
                   </div>
                   <p>
-                    登録完了後に表示される<strong>「アプリケーション (クライアント) ID」</strong>をコピーして、下の欄に貼り付けて保存してください。
+                    Azure Portal の左メニューから<strong>「概要 (Overview)」</strong>タブをクリックします。<br />
+                    画面中央付近に表示される<strong>「アプリケーション (クライアント) ID」</strong>をコピーして、下の欄に貼り付けて保存してください。
                   </p>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input 
