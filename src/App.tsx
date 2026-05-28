@@ -497,7 +497,7 @@ function App() {
               <h2>🔍 記事を検索</h2>
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ flex: 2 }}>
-                  <label style={{ fontSize: '0.85rem', color: '#666', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
                   <input 
                     type="text" 
                     placeholder="例: Python, 使い方..." 
@@ -506,7 +506,7 @@ function App() {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '0.85rem', color: '#666', display: 'block', marginBottom: '0.25rem' }}>カテゴリーで絞り込み</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>カテゴリーで絞り込み</label>
                   <select 
                     value={categorySearch}
                     onChange={(e) => setCategorySearch(e.target.value)}
@@ -528,7 +528,7 @@ function App() {
                       <h1 style={{ borderBottom: '2px solid var(--primary-color)', paddingBottom: '0.5rem' }}>
                         {articles.find(a => a.id === selectedArticleId)?.title}
                       </h1>
-                      <div style={{ color: '#666', marginBottom: '1rem' }}>
+                      <div style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                         カテゴリー: {articles.find(a => a.id === selectedArticleId)?.category.join(', ')} | 
                         作成: {articles.find(a => a.id === selectedArticleId)?.created}
                       </div>
@@ -563,7 +563,7 @@ function App() {
                           {recentlyUpdated.map(art => (
                             <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)}>
                               <h3 style={{ margin: '0 0 0.5rem 0' }}>{art.title}</h3>
-                              <div style={{ fontSize: '0.8rem', color: '#888' }}>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                                 {art.updated || art.created}
                               </div>
                             </div>
@@ -588,7 +588,7 @@ function App() {
                                 WebkitBoxOrient: 'vertical', 
                                 overflow: 'hidden',
                                 fontSize: '0.9rem',
-                                color: '#666',
+                                color: 'var(--text-secondary)',
                                 marginTop: '0.5rem'
                               }}>
                                 {articles.find(a => a.id === randomArticleId)?.content}
@@ -624,7 +624,7 @@ function App() {
                                 </div>
                               ))
                             ) : (
-                              <div style={{ fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
+                              <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                                 「提案を取得」ボタンを押すと、AIが次の記事の候補を提案します。
                               </div>
                             )}
@@ -640,14 +640,14 @@ function App() {
                     {filteredArticles.map(art => (
                       <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)}>
                         <h3 style={{ margin: '0 0 0.5rem 0' }}>{art.title}</h3>
-                        <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                           {art.category.slice(0, 2).join(', ')}{art.category.length > 2 ? '...' : ''}
                         </div>
                       </div>
                     ))}
                   </div>
                   {filteredArticles.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                       記事が見つかりませんでした。
                     </div>
                   )}
@@ -756,7 +756,7 @@ function App() {
                       onChange={(e) => setContent(e.target.value)} 
                       placeholder="# 見出し1&#10;## 見出し2&#10;- 箇条書き&#10;**太字**&#10;&#10;<yellow>重要な部分</yellow>"
                     />
-                    <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                       💡 Markdown記法（# や - など）が使えます。
                     </div>
                   </div>
@@ -793,7 +793,7 @@ function App() {
               <h2>🗑️ 記事を削除</h2>
               <div className="article-grid">
                 {articles.map(art => (
-                  <div key={art.id} className="article-card" style={{ borderColor: '#f8d7da' }}>
+                  <div key={art.id} className="article-card" style={{ borderColor: 'var(--error-border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <h3 style={{ margin: 0 }}>{art.title}</h3>
                       <button onClick={() => handleDelete(art.id!)} className="btn-danger" style={{ padding: '5px 10px', borderRadius: '4px' }}>
@@ -862,7 +862,7 @@ function App() {
                     onChange={(e) => setGeminiApiKey(e.target.value)} 
                     placeholder="AI APIキーを入力..." 
                   />
-                  <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '8px' }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
                     ※ キーはブラウザ内(localStorage)にのみ保存されます。<br />
                     APIキーは <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="link">Google AI Studio</a> で無料で取得できます。
                   </p>
@@ -876,11 +876,20 @@ function App() {
                   同じ設定を他のパソコンやスマホで行えば、<strong>どこでも同じデータを見たり編集したりできます。</strong>
                 </p>
 
-                <div style={{ marginTop: '1.5rem', padding: '1rem', background: isMsalConfigured ? '#e6fffa' : '#fff5f5', borderRadius: '8px', border: `1px solid ${isMsalConfigured ? '#38a169' : '#e53e3e'}`, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {isMsalConfigured ? <Cloud size={24} color="#38a169" /> : <CloudOff size={24} color="#e53e3e" />}
+                <div style={{ 
+                  marginTop: '1.5rem', 
+                  padding: '1rem', 
+                  background: isMsalConfigured ? 'var(--success-bg)' : 'var(--error-bg)', 
+                  borderRadius: '8px', 
+                  border: `1px solid ${isMsalConfigured ? 'var(--success-border)' : 'var(--error-border)'}`, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px' 
+                }}>
+                  {isMsalConfigured ? <Cloud size={24} color="var(--success-border)" /> : <CloudOff size={24} color="var(--error-border)" />}
                   <div>
                     <strong>ステータス: {isMsalConfigured ? '設定済み' : '未設定'}</strong>
-                    <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       {isMsalConfigured ? 'クラウド同期が利用可能です。' : '以下の手順に沿って設定を行ってください。'}
                     </div>
                   </div>
@@ -954,7 +963,7 @@ function App() {
                     <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="green" /> <code>User.Read</code></li>
                     <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="green" /> <code>Files.ReadWrite.AppFolder</code></li>
                   </ul>
-                  <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '10px' }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '10px' }}>
                     ※ 追加後、「(自分の名前) に管理者の同意を与えます」というボタンがあれば、それをクリックするとスムーズです（必須ではありません）。
                   </p>
                 </div>

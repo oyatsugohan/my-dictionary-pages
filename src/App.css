@@ -3,18 +3,28 @@
   --bg-color: #f8f9fa;
   --sidebar-bg: #ffffff;
   --text-color: #202124;
+  --text-secondary: #666666;
   --border-color: #dadce0;
   --card-bg: #ffffff;
   --hover-bg: #f1f3f4;
+  --success-bg: #e6fffa;
+  --error-bg: #fff5f5;
+  --success-border: #38a169;
+  --error-border: #e53e3e;
 }
 
 body.dark-mode {
   --bg-color: #121212;
   --sidebar-bg: #1e1e1e;
   --text-color: #e8eaed;
+  --text-secondary: #aaaaaa;
   --border-color: #3c4043;
   --card-bg: #2d2e31;
   --hover-bg: #3c4043;
+  --success-bg: #1a3a3a;
+  --error-bg: #3a1a1a;
+  --success-border: #38a169;
+  --error-border: #e53e3e;
 }
 
 body {
@@ -288,6 +298,7 @@ body.dark-mode .article-card:hover {
 
 .article-body p {
   margin-bottom: 1rem;
+  white-space: pre-wrap;
 }
 
 .article-body blockquote {
