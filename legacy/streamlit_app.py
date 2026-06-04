@@ -538,11 +538,13 @@ else:
             st.info("まだ記事がありません。「新規記事作成」から記事を追加してください。")
         else:
             all_categories = collect_all_categories(enc)
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 search_term = st.text_input("🔎 検索キーワードを入力", placeholder="記事のタイトルで検索")
             with col2:
                 selected_category = st.selectbox("🏷️ カテゴリーで絞り込み", ["すべて"] + all_categories)
+            with col3:
+                sort_order = st.selectbox("🔃 並び替え", ["50音順 (昇順)", "50音順 (降順)", "制作順 (新しい順)", "制作順 (古い順)"])
 
             results = {
                 k: v for k, v in enc.items()
@@ -558,8 +560,18 @@ else:
             else:
                 st.success(f"{len(results)}件の記事が見つかりました")
                 st.markdown("### 📋 記事一覧")
+                
+                if sort_order == "50音順 (昇順)":
+                    sorted_titles = sorted(results.keys())
+                elif sort_order == "50音順 (降順)":
+                    sorted_titles = sorted(results.keys(), reverse=True)
+                elif sort_order == "制作順 (新しい順)":
+                    sorted_titles = sorted(results.keys(), key=lambda k: results[k].get("created", ""), reverse=True)
+                else: # 制作順 (古い順)
+                    sorted_titles = sorted(results.keys(), key=lambda k: results[k].get("created", ""))
+
                 cols = st.columns(3)
-                for idx, title in enumerate(sorted(results.keys())):
+                for idx, title in enumerate(sorted_titles):
                     with cols[idx % 3]:
                         if st.button(f"📄 {title}", key=f"article_btn_{title}", use_container_width=True):
                             st.session_state.selected_article = title

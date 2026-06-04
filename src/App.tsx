@@ -14,6 +14,7 @@ function App() {
   const [activeMenu, setActiveMenu] = useState<Menu>('search');
   const [titleSearch, setTitleSearch] = useState('');
   const [categorySearch, setCategorySearch] = useState('すべて');
+  const [sortBy, setSortBy] = useState<'title-asc' | 'title-desc' | 'created-desc' | 'created-asc'>('title-asc');
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
   const [editArticleId, setEditArticleId] = useState<number | null>(null);
   const [userAccount, setUserAccount] = useState<AccountInfo | null>(null);
@@ -392,16 +393,28 @@ function App() {
     }, 0);
   };
 
-  const filteredArticles = articles.filter(a => {
-    const searchLower = titleSearch.toLowerCase();
-    const matchesTitle = a.title.toLowerCase().includes(searchLower);
-    const matchesContent = a.content.toLowerCase().includes(searchLower);
-    const matchesCategorySearch = a.category.some(c => c.toLowerCase().includes(searchLower));
-    
-    const matchesCategoryFilter = categorySearch === 'すべて' || a.category.includes(categorySearch);
-    
-    return (matchesTitle || matchesContent || matchesCategorySearch) && matchesCategoryFilter;
-  });
+  const filteredArticles = articles
+    .filter(a => {
+      const searchLower = titleSearch.toLowerCase();
+      const matchesTitle = a.title.toLowerCase().includes(searchLower);
+      const matchesContent = a.content.toLowerCase().includes(searchLower);
+      const matchesCategorySearch = a.category.some(c => c.toLowerCase().includes(searchLower));
+      
+      const matchesCategoryFilter = categorySearch === 'すべて' || a.category.includes(categorySearch);
+      
+      return (matchesTitle || matchesContent || matchesCategorySearch) && matchesCategoryFilter;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'title-asc') {
+        return a.title.localeCompare(b.title, 'ja');
+      } else if (sortBy === 'title-desc') {
+        return b.title.localeCompare(a.title, 'ja');
+      } else if (sortBy === 'created-desc') {
+        return (b.id || 0) - (a.id || 0);
+      } else {
+        return (a.id || 0) - (b.id || 0);
+      }
+    });
 
   const handleSaveMsalId = () => {
     if (!msalClientId.trim()) {
@@ -495,8 +508,8 @@ function App() {
           {activeMenu === 'search' && (
             <div>
               <h2>🔍 記事を検索</h2>
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ flex: 2 }}>
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <div style={{ flex: '2 1 300px' }}>
                   <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
                   <input 
                     type="text" 
@@ -505,8 +518,8 @@ function App() {
                     onChange={(e) => setTitleSearch(e.target.value)}
                   />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>カテゴリーで絞り込み</label>
+                <div style={{ flex: '1 1 150px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>カテゴリー</label>
                   <select 
                     value={categorySearch}
                     onChange={(e) => setCategorySearch(e.target.value)}
@@ -516,6 +529,19 @@ function App() {
                     {uniqueCategories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
+                  </select>
+                </div>
+                <div style={{ flex: '1 1 150px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>並び替え</label>
+                  <select 
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
+                  >
+                    <option value="title-asc">50音順 (昇順)</option>
+                    <option value="title-desc">50音順 (降順)</option>
+                    <option value="created-desc">制作順 (新しい順)</option>
+                    <option value="created-asc">制作順 (古い順)</option>
                   </select>
                 </div>
               </div>
