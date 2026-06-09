@@ -5,6 +5,7 @@ import { type AccountInfo } from '@azure/msal-browser';
 import { db } from './db';
 import { createLinks } from './utils';
 import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive, ensureInitialized, reconfigureMsal } from './auth';
+import { syncToCloudflare, loadFromCloudflare } from './cloudflareSync';
 import { getArticleSuggestions } from './ai';
 import './App.css';
 
@@ -19,6 +20,9 @@ function App() {
   const [editArticleId, setEditArticleId] = useState<number | null>(null);
   const [userAccount, setUserAccount] = useState<AccountInfo | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [syncMethod, setSyncMethod] = useState<'onedrive' | 'cloudflare'>(() => {
+    return (localStorage.getItem('sync_method') as 'onedrive' | 'cloudflare') || 'cloudflare';
+  });
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark' || 
            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -95,6 +99,11 @@ function App() {
     localStorage.setItem('gemini_api_key', geminiApiKey);
   }, [geminiApiKey]);
 
+  // Persist Sync Method
+  useEffect(() => {
+    localStorage.setItem('sync_method', syncMethod);
+  }, [syncMethod]);
+
   const handleFetchAiSuggestions = async () => {
     if (!geminiApiKey) {
       alert('Gemini APIキーを設定してください。');
@@ -154,22 +163,28 @@ function App() {
     checkAccount();
   }, []);
 
-  // Sync from Cloud on Login
+  // Sync from Cloud on Login / Mount
   useEffect(() => {
-    if (userAccount) {
+    if (syncMethod === 'onedrive' && userAccount) {
       loadFromOneDrive().then(updated => {
-        if (updated) console.log("Cloud data loaded");
+        if (updated) console.log("Cloud data loaded (OneDrive)");
+      });
+    } else if (syncMethod === 'cloudflare') {
+      loadFromCloudflare().then(updated => {
+        if (updated) console.log("Cloud data loaded (Cloudflare)");
       });
     }
-  }, [userAccount]);
+  }, [userAccount, syncMethod]);
 
   // Sync to Cloud after DB change (Debounced or triggered manually/on save)
   const triggerSync = async () => {
-    if (userAccount) {
-      setSyncing(true);
+    setSyncing(true);
+    if (syncMethod === 'onedrive' && userAccount) {
       await syncToOneDrive();
-      setSyncing(false);
+    } else if (syncMethod === 'cloudflare') {
+      await syncToCloudflare();
     }
+    setSyncing(false);
   };
 
   const handleLogin = async () => {
@@ -447,23 +462,35 @@ function App() {
       <aside className="sidebar">
         <h1><Book /> 百科事典</h1>
         
-        {userAccount ? (
+        {syncMethod === 'onedrive' ? (
+          userAccount ? (
+            <div style={{ marginBottom: '1.5rem', padding: '0.5rem', background: 'var(--hover-bg)', borderRadius: '8px', fontSize: '0.9rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <User size={16} /> <strong>{userAccount.name}</strong>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: syncing ? 'blue' : 'green', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                {syncing ? <Cloud size={14} className="animate-pulse" /> : <Cloud size={14} />} 
+                {syncing ? '同期中...' : 'OneDrive同期済み'}
+              </div>
+              <button onClick={handleLogout} className="btn" style={{ fontSize: '0.8rem', marginTop: '0.5rem', padding: '2px 8px', width: '100%' }}>
+                ログアウト
+              </button>
+            </div>
+          ) : (
+            <button onClick={handleLogin} className="nav-item" style={{ marginBottom: '1.5rem', background: '#00a4ef', color: 'white' }}>
+              <CloudOff size={20} /> MSアカウントでログイン
+            </button>
+          )
+        ) : (
           <div style={{ marginBottom: '1.5rem', padding: '0.5rem', background: 'var(--hover-bg)', borderRadius: '8px', fontSize: '0.9rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <User size={16} /> <strong>{userAccount.name}</strong>
+              <Cloud size={16} /> <strong>Cloudflare 同期</strong>
             </div>
             <div style={{ fontSize: '0.8rem', color: syncing ? 'blue' : 'green', display: 'flex', alignItems: 'center', gap: '5px' }}>
               {syncing ? <Cloud size={14} className="animate-pulse" /> : <Cloud size={14} />} 
-              {syncing ? '同期中...' : 'OneDrive同期済み'}
+              {syncing ? '同期中...' : '同期有効'}
             </div>
-            <button onClick={handleLogout} className="btn" style={{ fontSize: '0.8rem', marginTop: '0.5rem', padding: '2px 8px', width: '100%' }}>
-              ログアウト
-            </button>
           </div>
-        ) : (
-          <button onClick={handleLogin} className="nav-item" style={{ marginBottom: '1.5rem', background: '#00a4ef', color: 'white' }}>
-            <CloudOff size={20} /> MSアカウントでログイン
-          </button>
         )}
 
         <nav className="nav-menu">
@@ -896,7 +923,30 @@ function App() {
               </section>
 
               <section className="setup-step">
-                <h3>☁️ OneDrive 連携設定 (バックアップと同期)</h3>
+                <h3>🔄 同期方法の選択</h3>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                  <button 
+                    className={`btn ${syncMethod === 'cloudflare' ? 'btn-primary' : ''}`} 
+                    onClick={() => setSyncMethod('cloudflare')}
+                    style={{ flex: 1, padding: '1rem' }}
+                  >
+                    <strong>Cloudflare 同期 (推奨)</strong><br />
+                    <span style={{ fontSize: '0.8rem' }}>設定不要で高速に同期</span>
+                  </button>
+                  <button 
+                    className={`btn ${syncMethod === 'onedrive' ? 'btn-primary' : ''}`} 
+                    onClick={() => setSyncMethod('onedrive')}
+                    style={{ flex: 1, padding: '1rem' }}
+                  >
+                    <strong>OneDrive 同期</strong><br />
+                    <span style={{ fontSize: '0.8rem' }}>Azure の設定が必要</span>
+                  </button>
+                </div>
+              </section>
+
+              {syncMethod === 'onedrive' ? (
+                <section className="setup-step">
+                  <h3>☁️ OneDrive 連携設定 (バックアップと同期)</h3>
                 <p>
                   Microsoft アカウントでログインすると、あなたの百科事典データが自動的に OneDrive へ保存されます。<br />
                   同じ設定を他のパソコンやスマホで行えば、<strong>どこでも同じデータを見たり編集したりできます。</strong>
@@ -995,6 +1045,33 @@ function App() {
                   </p>
                 </div>
               </section>
+              ) : (
+                <section className="setup-step">
+                  <h3>☁️ Cloudflare 同期について</h3>
+                  <p>
+                    Cloudflare Pages の D1 データベースを使用して、データを安全にバックアップします。<br />
+                    面倒な Azure の設定は不要で、現在のブラウザごとに自動で同期が開始されます。
+                  </p>
+                  <div style={{ 
+                    marginTop: '1.5rem', 
+                    padding: '1rem', 
+                    background: 'var(--success-bg)', 
+                    borderRadius: '8px', 
+                    border: '1px solid var(--success-border)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px' 
+                  }}>
+                    <Cloud size={24} color="var(--success-border)" />
+                    <div>
+                      <strong>ステータス: 有効</strong>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        サーバー側での設定（D1データベースの作成とバインド）が完了していれば、自動的に同期されます。
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </div>
