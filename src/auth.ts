@@ -16,8 +16,8 @@ const msalConfig: Configuration = {
   auth: {
     clientId: getClientId(),
     authority: "https://login.microsoftonline.com/common",
-    // Use the base path from Vite config
-    redirectUri: window.location.origin + "/my-dictionary-pages/",
+    // Use the base path from window location
+    redirectUri: window.location.origin + "/",
   },
   cache: {
     cacheLocation: "sessionStorage",

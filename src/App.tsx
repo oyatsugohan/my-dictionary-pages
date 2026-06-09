@@ -947,10 +947,10 @@ function App() {
                     「リダイレクト URI」の項目で、<strong>「シングルページ アプリケーション (SPA)」</strong>を選択し、以下の URL を入力してください。
                   </p>
                   <div className="code-block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>{window.location.origin}/my-dictionary-pages/</span>
+                    <span>{window.location.origin}/</span>
                     <button 
                       onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/my-dictionary-pages/`);
+                        navigator.clipboard.writeText(`${window.location.origin}/`);
                         alert('コピーしました！');
                       }}
                       style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
