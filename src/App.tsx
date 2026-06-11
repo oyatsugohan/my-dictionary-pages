@@ -272,6 +272,20 @@ function App() {
     await triggerSync();
   };
 
+  const handleDuplicate = (id: number) => {
+    const art = articles.find(a => a.id === id);
+    if (art) {
+      setEditArticleId(null);
+      setTitle(`${art.title} (コピー)`);
+      setCategoryList(art.category);
+      setCategory('');
+      setContent(art.content);
+      setImages(art.images);
+      setActiveMenu('create');
+      setSelectedArticleId(null);
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (confirm('本当に削除しますか？')) {
       await db.articles.delete(id);
@@ -590,7 +604,12 @@ function App() {
               
               {selectedArticleId ? (
                 <div className="article-view">
-                  <button onClick={() => setSelectedArticleId(null)} className="btn">← 戻る</button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                    <button onClick={() => setSelectedArticleId(null)} className="btn">← 戻る</button>
+                    <button onClick={() => handleDuplicate(selectedArticleId)} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Save size={16} /> この記事をコピーして作成
+                    </button>
+                  </div>
                   {articles.find(a => a.id === selectedArticleId) && (
                     <article>
                       <h1 style={{ borderBottom: '2px solid var(--primary-color)', paddingBottom: '0.5rem' }}>
@@ -706,11 +725,19 @@ function App() {
                   
                   <div className="article-grid">
                     {filteredArticles.map(art => (
-                      <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)}>
-                        <h3 style={{ margin: '0 0 0.5rem 0' }}>{art.title}</h3>
+                      <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)} style={{ position: 'relative' }}>
+                        <h3 style={{ margin: '0 0 0.5rem 0', paddingRight: '30px' }}>{art.title}</h3>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                           {art.category.slice(0, 2).join(', ')}{art.category.length > 2 ? '...' : ''}
                         </div>
+                        <button 
+                          className="btn-icon" 
+                          onClick={(e) => { e.stopPropagation(); handleDuplicate(art.id!); }}
+                          title="この記事をコピーして作成"
+                          style={{ position: 'absolute', top: '10px', right: '10px', padding: '4px' }}
+                        >
+                          <Save size={14} />
+                        </button>
                       </div>
                     ))}
                   </div>
