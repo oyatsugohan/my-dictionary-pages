@@ -48,13 +48,41 @@ export const loadFromCloudflare = async () => {
 
     const data = await response.json();
 
-    if (Array.isArray(data)) {
-      await db.articles.clear();
-      for (const item of data) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, ...rest } = item;
-        await db.articles.add(rest);
+    if (Array.isArray(data) && data.length > 0) {
+      let updatedCount = 0;
+      
+      for (const remoteItem of data) {
+        // タイトルをキーにして既存の記事を探す
+        const localItem = await db.articles.where("title").equals(remoteItem.title).first();
+
+        if (!localItem) {
+          // ローカルに存在しない場合は新規追加
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, ...rest } = remoteItem;
+          await db.articles.add(rest);
+          updatedCount++;
+        } else {
+          // ローカルに存在する場合、日付を比較してリモートの方が新しければ更新
+          const remoteDate = new Date(remoteItem.updated || remoteItem.created).getTime();
+          const localDate = new Date(localItem.updated || localItem.created).getTime();
+
+          if (remoteDate > localDate) {
+            await db.articles.update(localItem.id!, {
+              category: remoteItem.category,
+              content: remoteItem.content,
+              images: remoteItem.images,
+              updated: remoteItem.updated || remoteItem.created
+            });
+            updatedCount++;
+          }
+        }
       }
+      
+      // 何らかの更新があった場合、マージされた結果をサーバーに反映（双方向同期）
+      if (updatedCount > 0) {
+        await syncToCloudflare();
+      }
+      
       return true;
     }
   } catch (error) {
