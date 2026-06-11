@@ -5,7 +5,7 @@ import { type AccountInfo } from '@azure/msal-browser';
 import { db } from './db';
 import { createLinks } from './utils';
 import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive, ensureInitialized, reconfigureMsal } from './auth';
-import { syncToCloudflare, loadFromCloudflare } from './cloudflareSync';
+import { syncToCloudflare, loadFromCloudflare, getUserId, setUserId } from './cloudflareSync';
 import { getArticleSuggestions } from './ai';
 import './App.css';
 
@@ -39,6 +39,9 @@ function App() {
     if (stored) return stored;
     return '';
   });
+  
+  // Cloudflare Sync ID state
+  const [cfSyncId, setCfSyncId] = useState(() => getUserId());
   
   // Form states
   const [title, setTitle] = useState('');
@@ -438,6 +441,18 @@ function App() {
     }
     if (confirm('クライアントIDを保存してアプリを再読み込みしますか？')) {
       reconfigureMsal(msalClientId.trim());
+    }
+  };
+
+  const handleSaveCfSyncId = async () => {
+    if (!cfSyncId.trim()) {
+      alert('同期IDを入力してください。');
+      return;
+    }
+    if (confirm('同期IDを変更してクラウドからデータを読み込みますか？（ローカルのデータとマージされます）')) {
+      setUserId(cfSyncId);
+      await loadFromCloudflare();
+      alert('同期IDを更新し、データをマージしました。');
     }
   };
 
@@ -1047,11 +1062,28 @@ function App() {
               </section>
               ) : (
                 <section className="setup-step">
-                  <h3>☁️ Cloudflare 同期について</h3>
+                  <h3>☁️ Cloudflare 同期設定</h3>
                   <p>
                     Cloudflare Pages の D1 データベースを使用して、データを安全にバックアップします。<br />
-                    面倒な Azure の設定は不要で、現在のブラウザごとに自動で同期が開始されます。
+                    このブラウザ固有の「同期ID」を控えておけば、他のブラウザや万が一のデータ復旧時に同じデータを読み込めます。
                   </p>
+                  
+                  <div className="form-group" style={{ marginTop: '1rem' }}>
+                    <label>現在の同期ID (この値をコピーして保存してください)</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input 
+                        type="text" 
+                        value={cfSyncId} 
+                        onChange={(e) => setCfSyncId(e.target.value)} 
+                        placeholder="同期IDを入力..." 
+                      />
+                      <button className="btn btn-primary" onClick={handleSaveCfSyncId}>更新</button>
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                      ※ 別の端末のデータを読み込みたい場合は、その端末のIDをここに入力して「更新」を押してください。
+                    </p>
+                  </div>
+
                   <div style={{ 
                     marginTop: '1.5rem', 
                     padding: '1rem', 
@@ -1066,7 +1098,7 @@ function App() {
                     <div>
                       <strong>ステータス: 有効</strong>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        サーバー側での設定（D1データベースの作成とバインド）が完了していれば、自動的に同期されます。
+                        同期IDに基づいて自動的にデータのバックアップと読み込みが行われます。
                       </div>
                     </div>
                   </div>

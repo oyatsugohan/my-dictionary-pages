@@ -6,14 +6,23 @@ import { db } from "./db";
 
 const SYNC_API_PATH = "/api/sync";
 
-// ユーザーIDの取得（現在は簡易的にlocalStorageに保存、将来的にはAuth連携）
-const getUserId = () => {
+// ユーザーIDの取得
+export const getUserId = () => {
   let id = localStorage.getItem("cf_sync_user_id");
   if (!id) {
     id = crypto.randomUUID();
     localStorage.setItem("cf_sync_user_id", id);
   }
   return id;
+};
+
+// ユーザーIDの手動設定
+export const setUserId = (id: string) => {
+  if (id.trim()) {
+    localStorage.setItem("cf_sync_user_id", id.trim());
+    return true;
+  }
+  return false;
 };
 
 export const syncToCloudflare = async () => {
