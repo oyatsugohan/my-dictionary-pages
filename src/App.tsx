@@ -226,6 +226,17 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editArticleId]); // Remove 'articles' from dependency to avoid cascading renders
 
+  const handleReset = () => {
+    if (confirm('入力内容をすべて消去してもよろしいですか？')) {
+      setTitle('');
+      setCategoryList([]);
+      setCategory('');
+      setContent('');
+      setImages([]);
+      setEditArticleId(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!title || !content) {
       alert('タイトルと内容を入力してください');
@@ -872,9 +883,14 @@ function App() {
                     </div>
                   </div>
 
-                  <button className="btn btn-primary" onClick={handleSave} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                    <Save size={20} /> {editArticleId ? '更新を保存' : '記事を保存'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                    <button className="btn btn-primary" onClick={handleSave} style={{ flex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                      <Save size={20} /> {editArticleId ? '更新を保存' : '記事を保存'}
+                    </button>
+                    <button className="btn" onClick={handleReset} style={{ flex: 1, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-color)' }}>
+                      リセット
+                    </button>
+                  </div>
                   {editArticleId && (
                     <button className="btn" onClick={() => setEditArticleId(null)} style={{ width: '100%', marginTop: '0.5rem' }}>キャンセル</button>
                   )}
