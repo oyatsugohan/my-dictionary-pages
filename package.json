@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:cf": "npm run build && wrangler pages dev dist --compatibility-date=2024-11-01 --d1=DB",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:init": "wrangler d1 execute wrangler --remote --file=schema.sql",
+    "db:init:local": "wrangler d1 execute DB --local --file=schema.sql"
   },
   "dependencies": {
     "@azure/msal-browser": "^3.28.0",
