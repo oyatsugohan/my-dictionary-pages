@@ -1,6 +1,13 @@
 name = "my-dictionary-pages"
+main = "src/index.js"
 compatibility_date = "2024-11-01"
 pages_build_output_dir = "dist"
 
 [vars]
 # VITE_MSAL_CLIENT_ID = "your-client-id" # You can also set this in the dashboard
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wrangler"
+database_id = "29810d15-4f98-4b82-bebe-dcc7ea16820a" # 本番環境用。wrangler d1 create の実行後に発行される実際のUUIDに差し替えてください。
+
