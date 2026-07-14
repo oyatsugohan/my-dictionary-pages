@@ -1,14 +1,10 @@
-# 1. 一番上に以下の3行を新しく追加します
+name = "my-dictionary-pages"
+main = "index.ts"  # 上記で作成したファイルのパス（srcの中なら src/index.ts）
+compatibility_date = "2024-11-01"
+
 [assets]
 directory = "./dist"
-
-# 2. 元々あった設定をそのまま続けます（プロジェクト名は元のまま）
-name = "my-dictionary-pages"
-compatibility_date = "2024-11-01"
-pages_build_output_dir = "dist"
-
-[vars]
-# VITE_MSAL_CLIENT_ID = "your-client-id"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"
