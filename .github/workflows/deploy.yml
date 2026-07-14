@@ -1,10 +1,16 @@
-# 1. まずビルドを実行（dist フォルダが生成されます）
-- name: Build
-  run: npm run build
+# 1. 一番上に以下の3行を新しく追加します
+[assets]
+directory = "./dist"
 
-# 2. Pages専用のコマンドでデプロイを実行（修正箇所）
-- name: Deploy to Cloudflare Pages
-  run: npx wrangler pages deploy dist --project-name=my-dictionary-pages2
-  env:
-    CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-    CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+# 2. 元々あった設定をそのまま続けます（プロジェクト名は元のまま）
+name = "my-dictionary-pages"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+[vars]
+# VITE_MSAL_CLIENT_ID = "your-client-id"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wrangler"
+database_id = "29810d15-4f98-4b82-bebe-dcc7ea16820a"
