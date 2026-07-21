@@ -1,3 +1,5 @@
+import { verifySession } from "./auth/_utils";
+
 interface Env {
   DB: D1Database;
 }
@@ -5,7 +7,25 @@ interface Env {
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   const url = new URL(request.url);
-  const userId = url.searchParams.get("userId") || "default_user"; // 簡易的なユーザー識別（将来的に認証を追加可能）
+  
+  // Authenticate via Authorization header
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized: Missing session token" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const token = authHeader.split(" ")[1];
+  const userId = await verifySession(env.DB, token);
+
+  if (!userId) {
+    return new Response(JSON.stringify({ error: "Unauthorized: Invalid or expired session" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   // GET: バックアップデータの取得
   if (request.method === "GET") {

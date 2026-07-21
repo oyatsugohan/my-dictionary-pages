@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { getStoredSession } from "./apiAuth";
 
 /**
  * Cloudflare Pages Functions を利用した同期ロジック
@@ -6,35 +7,22 @@ import { db } from "./db";
 
 const SYNC_API_PATH = "/api/sync";
 
-// ユーザーIDの取得
-export const getUserId = () => {
-  let id = localStorage.getItem("cf_sync_user_id");
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("cf_sync_user_id", id);
-  }
-  return id;
-};
-
-// ユーザーIDの手動設定
-export const setUserId = (id: string) => {
-  if (id.trim()) {
-    localStorage.setItem("cf_sync_user_id", id.trim());
-    return true;
-  }
-  return false;
-};
-
 export const syncToCloudflare = async () => {
-  const userId = getUserId();
+  const session = getStoredSession();
+  if (!session) {
+    console.warn("Cloudflare Sync: Not logged in");
+    return false;
+  }
+
   const articles = await db.articles.toArray();
   const content = JSON.stringify(articles);
 
   try {
-    const response = await fetch(`${SYNC_API_PATH}?userId=${userId}`, {
+    const response = await fetch(SYNC_API_PATH, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.token}`,
       },
       body: content,
     });
@@ -49,10 +37,18 @@ export const syncToCloudflare = async () => {
 };
 
 export const loadFromCloudflare = async () => {
-  const userId = getUserId();
+  const session = getStoredSession();
+  if (!session) {
+    console.warn("Cloudflare Load: Not logged in");
+    return false;
+  }
 
   try {
-    const response = await fetch(`${SYNC_API_PATH}?userId=${userId}`);
+    const response = await fetch(SYNC_API_PATH, {
+      headers: {
+        "Authorization": `Bearer ${session.token}`,
+      }
+    });
     if (!response.ok) throw new Error("Cloudflare Load Failed");
 
     const data = await response.json();

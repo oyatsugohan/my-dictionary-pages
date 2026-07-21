@@ -5,7 +5,8 @@ import { type AccountInfo } from '@azure/msal-browser';
 import { db } from './db';
 import { createLinks } from './utils';
 import { msalInstance, loginRequest, syncToOneDrive, loadFromOneDrive, ensureInitialized, reconfigureMsal } from './auth';
-import { syncToCloudflare, loadFromCloudflare, getUserId, setUserId } from './cloudflareSync';
+import { syncToCloudflare, loadFromCloudflare } from './cloudflareSync';
+import { registerUser, loginUser, getStoredSession, clearSession, type AuthSession } from './apiAuth';
 import { getArticleSuggestions } from './ai';
 import './App.css';
 
@@ -40,8 +41,12 @@ function App() {
     return '';
   });
   
-  // Cloudflare Sync ID state
-  const [cfSyncId, setCfSyncId] = useState(() => getUserId());
+  // Auth states
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => getStoredSession());
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
   
   // Form states
   const [title, setTitle] = useState('');
