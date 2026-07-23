@@ -502,17 +502,6 @@ function App() {
     }
   };
 
-  const handleSaveCfSyncId = async () => {
-    if (!cfSyncId.trim()) {
-      alert('同期IDを入力してください。');
-      return;
-    }
-    if (confirm('同期IDを変更してクラウドからデータを読み込みますか？（ローカルのデータとマージされます）')) {
-      setUserId(cfSyncId);
-      await loadFromCloudflare();
-      alert('同期IDを更新し、データをマージしました。');
-    }
-  };
 
   const currentClientId = msalInstance.getConfiguration().auth.clientId;
   const isMsalConfigured = currentClientId && currentClientId !== "00000000-0000-0000-0000-000000000000";
@@ -1179,21 +1168,6 @@ function App() {
                     このブラウザ固有の「同期ID」を控えておけば、他のブラウザや万が一のデータ復旧時に同じデータを読み込めます。
                   </p>
                   
-                  <div className="form-group" style={{ marginTop: '1rem' }}>
-                    <label>現在の同期ID (この値をコピーして保存してください)</label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input 
-                        type="text" 
-                        value={cfSyncId} 
-                        onChange={(e) => setCfSyncId(e.target.value)} 
-                        placeholder="同期IDを入力..." 
-                      />
-                      <button className="btn btn-primary" onClick={handleSaveCfSyncId}>更新</button>
-                    </div>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                      ※ 別の端末のデータを読み込みたい場合は、その端末のIDをここに入力して「更新」を押してください。
-                    </p>
-                  </div>
 
                   <div style={{ 
                     marginTop: '1.5rem', 
