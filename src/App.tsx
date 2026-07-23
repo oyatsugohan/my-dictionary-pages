@@ -570,31 +570,31 @@ function App() {
         ) : (
           <div style={{ marginBottom: '1.5rem', padding: '0.5rem', background: 'var(--hover-bg)', borderRadius: '8px', fontSize: '0.9rem' }}>
             <input
-              type="text"
-              value={authUsername}
-              onChange={(e) => setAuthUsername(e.target.value)}
-              placeholder="ユーザー名"
-              style={{ marginBottom: '0.5rem' }}
+               type="text"
+               value={authUsername}
+               onChange={(e) => setAuthUsername(e.target.value)}
+               placeholder="ユーザー名"
+               style={{ marginBottom: '0.5rem' }}
             />
             <input
-              type="password"
-              value={authPassword}
-              onChange={(e) => setAuthPassword(e.target.value)}
-              placeholder="パスワード"
-              style={{ marginBottom: '0.5rem' }}
+               type="password"
+               value={authPassword}
+               onChange={(e) => setAuthPassword(e.target.value)}
+               placeholder="パスワード"
+               style={{ marginBottom: '0.5rem' }}
             />
             {authError && <div style={{ color: 'red', fontSize: '0.8rem', marginBottom: '0.5rem' }}>{authError}</div>}
             <button
-              className="btn btn-primary"
-              style={{ width: '100%', marginBottom: '0.5rem' }}
-              onClick={authMode === 'login' ? handleAuthLogin : handleAuthRegister}
+               className="btn btn-primary"
+               style={{ width: '100%', marginBottom: '0.5rem' }}
+               onClick={authMode === 'login' ? handleAuthLogin : handleAuthRegister}
             >
               {authMode === 'login' ? 'ログイン' : '新規登録'}
             </button>
             <button
-              className="btn"
-              style={{ width: '100%', fontSize: '0.8rem' }}
-              onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}
+               className="btn"
+               style={{ width: '100%', fontSize: '0.8rem' }}
+               onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}
             >
               {authMode === 'login' ? '新規登録はこちら' : 'ログインはこちら'}
             </button>
