@@ -210,6 +210,34 @@ function App() {
     msalInstance.logoutRedirect();
   };
 
+  const handleAuthLogin = async () => {
+   setAuthError('');
+   const result = await loginUser(authUsername, authPassword);
+   if (result.success && result.session) {
+     setAuthSession(result.session);
+     setAuthUsername('');
+     setAuthPassword('');
+     await loadFromCloudflare();
+   } else {
+     setAuthError(result.error || 'ログインに失敗しました');
+   }
+  };
+
+  const handleAuthRegister = async () => {
+   setAuthError('');
+   const result = await registerUser(authUsername, authPassword);
+   if (result.success) {
+     // 登録成功後、そのままログインする
+     await handleAuthLogin();
+   } else {
+     setAuthError(result.error || '登録に失敗しました');
+   }
+  };
+  const handleAuthLogout = () => {
+   clearSession();
+   setAuthSession(null);
+  };
+
   // Sync edit form when editArticleId changes
   useEffect(() => {
     if (editArticleId) {
