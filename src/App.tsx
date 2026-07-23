@@ -526,15 +526,50 @@ function App() {
               <CloudOff size={20} /> MSアカウントでログイン
             </button>
           )
-        ) : (
+        ) : authSession ? (
           <div style={{ marginBottom: '1.5rem', padding: '0.5rem', background: 'var(--hover-bg)', borderRadius: '8px', fontSize: '0.9rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <Cloud size={16} /> <strong>Cloudflare 同期</strong>
+              <User size={16} /> <strong>{authSession.user.username}</strong>
             </div>
             <div style={{ fontSize: '0.8rem', color: syncing ? 'blue' : 'green', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              {syncing ? <Cloud size={14} className="animate-pulse" /> : <Cloud size={14} />} 
-              {syncing ? '同期中...' : '同期有効'}
+               {syncing ? <Cloud size={14} className="animate-pulse" /> : <Cloud size={14} />}
+               {syncing ? '同期中...' : '同期有効'}
             </div>
+            <button onClick={handleAuthLogout} className="btn" style={{ fontSize: '0.8rem', marginTop: '0.5rem', padding: '2px 8px', width: '100%' }}>
+              ログアウト
+            </button>
+          </div>
+        ) : (
+          <div style={{ marginBottom: '1.5rem', padding: '0.5rem', background: 'var(--hover-bg)', borderRadius: '8px', fontSize: '0.9rem' }}>
+            <input
+              type="text"
+              value={authUsername}
+              onChange={(e) => setAuthUsername(e.target.value)}
+              placeholder="ユーザー名"
+              style={{ marginBottom: '0.5rem' }}
+            />
+            <input
+              type="password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              placeholder="パスワード"
+              style={{ marginBottom: '0.5rem' }}
+            />
+            {authError && <div style={{ color: 'red', fontSize: '0.8rem', marginBottom: '0.5rem' }}>{authError}</div>}
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%', marginBottom: '0.5rem' }}
+              onClick={authMode === 'login' ? handleAuthLogin : handleAuthRegister}
+            >
+              {authMode === 'login' ? 'ログイン' : '新規登録'}
+            </button>
+            <button
+              className="btn"
+              style={{ width: '100%', fontSize: '0.8rem' }}
+              onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}
+            >
+              {authMode === 'login' ? '新規登録はこちら' : 'ログインはこちら'}
+            </button>
           </div>
         )}
 
