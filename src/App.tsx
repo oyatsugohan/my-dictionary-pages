@@ -16,6 +16,9 @@ function App() {
   const [activeMenu, setActiveMenu] = useState<Menu>('search');
   const [titleSearch, setTitleSearch] = useState('');
   const [editSearch, setEditSearch] = useState('');
+  const [editSearch, setEditSearch] = useState('');
+  const [editCategorySearch, setEditCategorySearch] = useState('すべて');
+  const [editSortBy, setEditSortBy] = useState<'title-asc' | 'title-desc' | 'created-desc' | 'created-asc'>('title-asc');
   const [categorySearch, setCategorySearch] = useState('すべて');
   const [sortBy, setSortBy] = useState<'title-asc' | 'title-desc' | 'created-desc' | 'created-asc'>('title-asc');
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
@@ -826,36 +829,75 @@ function App() {
               
               {activeMenu === 'edit' && !editArticleId ? (
                 <div>
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
-                    <input
-                      type="text"
-                      placeholder="例: Python, 使い方..."
-                      value={editSearch}
-                      onChange={(e) => setEditSearch(e.target.value)}
-                    />
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '2 1 300px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
+                      <input
+                        tipe="text"
+                        placeholder="例: Python, 使い方..."
+                        value={editSearch}
+                        onChange={(e) => setEditSearch(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ flex: '1 1 150px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>カテゴリー</label>
+                      <select
+                        value={editCategorySearch}
+                        onChange={(e) => setEditCategorySearch(e.target.value)}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
+                      >
+                        <option value="すべて">すべて</option>
+                        {uniqueCategories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: '1 1 150px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>並び替え</label>
+                      <select
+                        value={editSortBy}
+                        onChange={(e) => setEditSortBy(e.target.value as any)}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
+                      >
+                        <option value="title-asc">50音順 (昇順)</option>
+                        <option value="title-desc">50音順 (降順)</option>
+                        <option value="created-desc">制作順 (新しい順)</option>
+                        <option value="created-asc">制作順 (古い順)</option>
+                      </select>
+                    </div>
                   </div>
+
                   <div className="article-grid">
                     {articles
                       .filter(art => {
                         const q = editSearch.toLowerCase();
-                        return art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
+                        const matchesSearch = art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
+                        const matchesCategory = editCategorySearch === 'すべて' || art.category.includes(editCategorySearch);
+                        return matchesSearch && matchesCategory;
+                      })
+                      .sort((a, b) => {
+                        if (editSortBy === 'title-asc') return a.title.localeCompare(b.title, 'ja');
+                        if (editSortBy === 'title-desc') return b.title.localeCompare(a.title, 'ja');
+                        if (editSortBy === 'created-desc') return (b.id || 0) - (a.id || 0);
+                        return (a.id || 0) - (b.id || 0);
                       })
                       .map(art => (
                         <div key={art.id} className="article-card" onClick={() => setEditArticleId(art.id!)}>
                           <h3>{art.title}</h3>
                         </div>
                       ))}
-                  </div>
-                  {articles.filter(art => {
-                    const q = editSearch.toLowerCase();
-                    return art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
-                  }).length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                      記事が見つかりませんでした。
                     </div>
-                  )}
-                </div>
+                    {articles.filter(art => {
+                      const q = editSearch.toLowerCase();
+                      const matchesSearch = art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
+                      const matchesCategory = editCategorySearch === 'すべて' || art.category.includes(editCategorySearch);
+                      return matchesSearch && matchesCategory;
+                    }).length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                        記事が見つかりませんでした。
+                      </div>
+                    )}
+                  </div>
               ) : (
                 <div className="form">
                   <div className="form-group">
