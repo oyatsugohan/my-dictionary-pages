@@ -15,6 +15,7 @@ type Menu = 'search' | 'create' | 'edit' | 'delete' | 'stats' | 'setup';
 function App() {
   const [activeMenu, setActiveMenu] = useState<Menu>('search');
   const [titleSearch, setTitleSearch] = useState('');
+  const [editSearch, setEditSearch] = useState('');
   const [categorySearch, setCategorySearch] = useState('すべて');
   const [sortBy, setSortBy] = useState<'title-asc' | 'title-desc' | 'created-desc' | 'created-asc'>('title-asc');
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
@@ -824,12 +825,36 @@ function App() {
               <h2>{activeMenu === 'edit' ? '📝 記事を編集' : '➕ 新規記事作成'}</h2>
               
               {activeMenu === 'edit' && !editArticleId ? (
-                <div className="article-grid">
-                  {articles.map(art => (
-                    <div key={art.id} className="article-card" onClick={() => setEditArticleId(art.id!)}>
-                      <h3>{art.title}</h3>
+                <div>
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
+                    <input
+                      type="text"
+                      placeholder="例: Python, 使い方..."
+                      value={editSearch}
+                      onChange={(e) => setEditSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="article-grid">
+                    {articles
+                      .filter(art => {
+                        const q = editSearch.toLowerCase();
+                        return art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
+                      })
+                      .map(art => (
+                        <div key={art.id} className="article-card" onClick={() => setEditArticleId(art.id!)}>
+                          <h3>{art.title}</h3>
+                        </div>
+                      ))}
+                  </div>
+                  {articles.filter(art => {
+                    const q = editSearch.toLowerCase();
+                    return art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
+                  }).length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                      記事が見つかりませんでした。
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <div className="form">
