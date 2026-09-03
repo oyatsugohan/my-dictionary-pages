@@ -16,7 +16,6 @@ function App() {
   const [activeMenu, setActiveMenu] = useState<Menu>('search');
   const [titleSearch, setTitleSearch] = useState('');
   const [editSearch, setEditSearch] = useState('');
-  const [editSearch, setEditSearch] = useState('');
   const [editCategorySearch, setEditCategorySearch] = useState('すべて');
   const [editSortBy, setEditSortBy] = useState<'title-asc' | 'title-desc' | 'created-desc' | 'created-asc'>('title-asc');
   const [categorySearch, setCategorySearch] = useState('すべて');
@@ -833,7 +832,7 @@ function App() {
                     <div style={{ flex: '2 1 300px' }}>
                       <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
                       <input
-                        tipe="text"
+                        type="text"
                         placeholder="例: Python, 使い方..."
                         value={editSearch}
                         onChange={(e) => setEditSearch(e.target.value)}
