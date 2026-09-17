@@ -635,7 +635,7 @@ function App() {
           {activeMenu === 'search' && (
             <div>
               <h2>🔍 記事を検索</h2>
-              
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', frexWrap: 'wrap'}}>
                 <div style={{ flex: '2 1 300px' }}>
                   <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
                   <input 
