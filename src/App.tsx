@@ -822,230 +822,230 @@ function App() {
             </div>
           )}
           {(activeMenu === 'create' || activeMenu === 'edit') && (
-          <div>
-            <h2>{activeMenu === 'edit' ? '📝 記事を編集' : '➕ 新規記事作成'}</h2>
-            {activeMenu === 'create' && createMode === 'choose' ? (
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <div
-                  className="article-card"
-                  style={{ flex: '1 1 200px', textAlign: 'center', padding: '2rem', cursor: 'pointer' }}
-                  onClick={() => {
-                    setCreateMode('blank');
-                    setTitle('');
-                    setCategoryList([]);
-                    setCategory('');
-                    setContent('');
-                    setImages([]);
-                  }}
-                >
-                  <PlusCircle size={32} style={{ marginBottom: '0.5rem' }} />
-                  <h3>白紙から作成</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>新しい記事をゼロから書く</p>
-                </div>
-                <div
-                  className="article-card"
-                  style={{ flex: '1 1 200px', textAlign: 'center', padding: '2rem', cursor: 'pointer' }}
-                  onClick={() => setCreateMode('copy')}
-                >
-                  <Save size={32} style={{ marginBottom: '0.5rem' }} />
-                  <h3>既存の記事をコピー</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>既にある記事を元に作る</p>
-                </div>
-              </div>
-            ) : activeMenu === 'create' && createMode === 'copy' ? (
-              <div>
-                <button className="btn" style={{ marginBottom: '1rem' }} onClick={() => setCreateMode('choose')}>← 戻る</button>
-                <div className="article-grid">
-                  {articles.map(art => (
-                    <div
-                      key={art.id}
-                      className="article-card"
-                      onClick={() => {
-                        handleDuplicate(art.id!);
-                        setCreateMode('blank');
-                      }}
-                    >
-                      <h3>{art.title}</h3>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : activeMenu === 'edit' && !editArticleId ? (
-              <div>
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                  <div style={{ flex: '2 1 300px' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
-                    <input
-                      type="text"
-                      placeholder="例: Python, 使い方..."
-                      value={editSearch}
-                      onChange={(e) => setEditSearch(e.target.value)}
-                    />
+            <div>
+              <h2>{activeMenu === 'edit' ? '📝 記事を編集' : '➕ 新規記事作成'}</h2>
+              {activeMenu === 'create' && createMode === 'choose' ? (
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div
+                    className="article-card"
+                    style={{ flex: '1 1 200px', textAlign: 'center', padding: '2rem', cursor: 'pointer' }}
+                    onClick={() => {
+                      setCreateMode('blank');
+                      setTitle('');
+                      setCategoryList([]);
+                      setCategory('');
+                      setContent('');
+                      setImages([]);
+                    }}
+                  >
+                    <PlusCircle size={32} style={{ marginBottom: '0.5rem' }} />
+                    <h3>白紙から作成</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>新しい記事をゼロから書く</p>
                   </div>
-                  <div style={{ flex: '1 1 150px' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>カテゴリー</label>
-                    <select
-                      value={editCategorySearch}
-                      onChange={(e) => setEditCategorySearch(e.target.value)}
-                      style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
-                    >
-                      <option value="すべて">すべて</option>
-                      {uniqueCategories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ flex: '1 1 150px' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>並び替え</label>
-                    <select
-                      value={editSortBy}
-                      onChange={(e) => setEditSortBy(e.target.value as any)}
-                      style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
-                    >
-                      <option value="title-asc">50音順 (昇順)</option>
-                      <option value="title-desc">50音順 (降順)</option>
-                      <option value="created-desc">制作順 (新しい順)</option>
-                      <option value="created-asc">制作順 (古い順)</option>
-                    </select>
+                  <div
+                    className="article-card"
+                    style={{ flex: '1 1 200px', textAlign: 'center', padding: '2rem', cursor: 'pointer' }}
+                    onClick={() => setCreateMode('copy')}
+                  >
+                    <Save size={32} style={{ marginBottom: '0.5rem' }} />
+                    <h3>既存の記事をコピー</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>既にある記事を元に作る</p>
                   </div>
                 </div>
-                <div className="article-grid">
-                  {articles
-                    .filter(art => {
-                      const q = editSearch.toLowerCase();
-                      const matchesSearch = art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
-                      const matchesCategory = editCategorySearch === 'すべて' || art.category.includes(editCategorySearch);
-                      return matchesSearch && matchesCategory;
-                    })
-                    .sort((a, b) => {
-                      if (editSortBy === 'title-asc') return a.title.localeCompare(b.title, 'ja');
-                      if (editSortBy === 'title-desc') return b.title.localeCompare(a.title, 'ja');
-                      if (editSortBy === 'created-desc') return (b.id || 0) - (a.id || 0);
-                      return (a.id || 0) - (b.id || 0);
-                    })
-                    .map(art => (
-                      <div key={art.id} className="article-card" onClick={() => setEditArticleId(art.id!)}>
+              ) : activeMenu === 'create' && createMode === 'copy' ? (
+                <div>
+                  <button className="btn" style={{ marginBottom: '1rem' }} onClick={() => setCreateMode('choose')}>← 戻る</button>
+                  <div className="article-grid">
+                    {articles.map(art => (
+                      <div
+                        key={art.id}
+                        className="article-card"
+                        onClick={() => {
+                          handleDuplicate(art.id!);
+                          setCreateMode('blank');
+                        }}
+                      >
                         <h3>{art.title}</h3>
                       </div>
                     ))}
                   </div>
-                  {articles.filter(art => {
-                    const q = editSearch.toLowerCase();
-                    const matchesSearch = art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
-                    const matchesCategory = editCategorySearch === 'すべて' || art.category.includes(editCategorySearch);
-                    return matchesSearch && matchesCategory;
-                  }).length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                      記事が見つかりませんでした。
-                    </div>
-                  )}
                 </div>
-              ) : (
-                <div className="form">
-                  <div className="form-group">
-                    <label>記事タイトル</label>
-                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="記事タイトルを書く欄" />
-                  </div>
-                  <div className="form-group">
-                    <label>カテゴリー</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              ) : activeMenu === 'edit' && !editArticleId ? (
+                <div>
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '2 1 300px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
                       <input
                         type="text"
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-                        placeholder="例: 技術 (入力してEnter)"
+                        placeholder="例: Python, 使い方..."
+                        value={editSearch}
+                        onChange={(e) => setEditSearch(e.target.value)}
                       />
-                      <button className="btn btn-primary" onClick={handleAddCategory}>追加</button>
                     </div>
-                    <div className="tag-container">
-                      {categoryList.map(cat => (
-                        <span key={cat} className="tag-chip">
-                          {cat}
-                            <button onClick={() => removeCategory(cat)}>&times;</button>
-                        </span>
-                      ))}
+                    <div style={{ flex: '1 1 150px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>カテゴリー</label>
+                      <select
+                        value={editCategorySearch}
+                        onChange={(e) => setEditCategorySearch(e.target.value)}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
+                      >
+                        <option value="すべて">すべて</option>
+                        {uniqueCategories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: '1 1 150px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>並び替え</label>
+                      <select
+                        value={editSortBy}
+                        onChange={(e) => setEditSortBy(e.target.value as any)}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
+                      >
+                        <option value="title-asc">50音順 (昇順)</option>
+                        <option value="title-desc">50音順 (降順)</option>
+                        <option value="created-desc">制作順 (新しい順)</option>
+                        <option value="created-asc">制作順 (古い順)</option>
+                      </select>
                     </div>
                   </div>
-                  <div className="form-group">
-                    <label>画像</label>
-                    <div
-                      className={`drop-zone ${isDragging ? 'dragging' : ''}`}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      onClick={() => document.getElementById('image-input')?.click()}
-                    >
-                      <ImageIcon size={24} style={{ marginBottom: '0.5rem' }} />
-                      <div>クリックして画像を選択、または画面のどこにでも画像をドロップして追加できます</div>
-                    </div>
-                    <input
-                      id="image-input"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageUpload}
-                      style={{ display: 'none' }}
-                    />
-                    {images.length > 0 && (
-                      <div style={{ marginBottom: '10px' }}>
-                        <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', fontSize: '0.8rem', padding: '5px 10px', color: 'var(--text-color)' }}>
-                          全画像をリセット ({images.length}枚)
-                        </button>
-                      </div>
-                    )}
-                    <div className="image-preview-grid">
-                      {images.map((img, i) => (
-                        <div key={i} className="image-preview-item">
-                          <img src={img} alt="" />
-                          <button
-                            className="btn-danger"
-                            style={{ position: 'absolute', top: '2px', right: '2px', padding: '0 6px', borderRadius: '50%', border: 'none', cursor: 'pointer', height: '20px', width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setImages(prev => prev.filter((_, idx) => idx !== i));
-                            }}
-                          >
-                            &times;
-                          </button>
+                  <div className="article-grid">
+                    {articles
+                      .filter(art => {
+                        const q = editSearch.toLowerCase();
+                        const matchesSearch = art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
+                        const matchesCategory = editCategorySearch === 'すべて' || art.category.includes(editCategorySearch);
+                        return matchesSearch && matchesCategory;
+                      })
+                      .sort((a, b) => {
+                        if (editSortBy === 'title-asc') return a.title.localeCompare(b.title, 'ja');
+                        if (editSortBy === 'title-desc') return b.title.localeCompare(a.title, 'ja');
+                        if (editSortBy === 'created-desc') return (b.id || 0) - (a.id || 0);
+                        return (a.id || 0) - (b.id || 0);
+                      })
+                      .map(art => (
+                        <div key={art.id} className="article-card" onClick={() => setEditArticleId(art.id!)}>
+                          <h3>{art.title}</h3>
                         </div>
                       ))}
                     </div>
+                    {articles.filter(art => {
+                      const q = editSearch.toLowerCase();
+                      const matchesSearch = art.title.toLowerCase().includes(q) || art.content.toLowerCase().includes(q);
+                      const matchesCategory = editCategorySearch === 'すべて' || art.category.includes(editCategorySearch);
+                      return matchesSearch && matchesCategory;
+                    }).length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                        記事が見つかりませんでした。
+                      </div>
+                    )}
                   </div>
-                  <div className="form-group">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
-                      <label style={{ margin: 0 }}>記事内容 (Markdown対応)</label>
-                      <div className="marker-tools">
-                        <button onClick={() => insertMarker('yellow')} className="marker-btn" style={{ backgroundColor: '#ffeb3b', color: '#333' }}>黄</button>
-                        <button onClick={() => insertMarker('green')} className="marker-btn" style={{ backgroundColor: '#8bc34a', color: '#333' }}>緑</button>
-                        <button onClick={() => insertMarker('blue')} className="marker-btn" style={{ backgroundColor: '#03a9f4', color: 'white' }}>青</button>
-                        <button onClick={() => insertMarker('red')} className="marker-btn" style={{ backgroundColor: '#f44336', color: 'white' }}>赤</button>
+                ) : (
+                  <div className="form">
+                    <div className="form-group">
+                      <label>記事タイトル</label>
+                      <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="記事タイトルを書く欄" />
+                    </div>
+                    <div className="form-group">
+                      <label>カテゴリー</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <input
+                          type="text"
+                          value={category}
+                          onChange={(e) => setCategory(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                          placeholder="例: 技術 (入力してEnter)"
+                        />
+                        <button className="btn btn-primary" onClick={handleAddCategory}>追加</button>
+                      </div>
+                      <div className="tag-container">
+                        {categoryList.map(cat => (
+                          <span key={cat} className="tag-chip">
+                            {cat}
+                              <button onClick={() => removeCategory(cat)}>&times;</button>
+                          </span>
+                        ))}
                       </div>
                     </div>
-                    <textarea
-                      id="content-area"
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      placeholder="# 見出し1&#10;## 見出し2&#10;- 箇条書き&#10;**太字**&#10;&#10;<yellow>重要な部分</yellow>"
-                    />
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                      💡 Markdown記法（# や - など）が使えます。
+                    <div className="form-group">
+                      <label>画像</label>
+                      <div
+                        className={`drop-zone ${isDragging ? 'dragging' : ''}`}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        onClick={() => document.getElementById('image-input')?.click()}
+                      >
+                        <ImageIcon size={24} style={{ marginBottom: '0.5rem' }} />
+                        <div>クリックして画像を選択、または画面のどこにでも画像をドロップして追加できます</div>
+                      </div>
+                      <input
+                        id="image-input"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleImageUpload}
+                        style={{ display: 'none' }}
+                      />
+                      {images.length > 0 && (
+                        <div style={{ marginBottom: '10px' }}>
+                          <button className="btn" onClick={() => setImages([])} style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', fontSize: '0.8rem', padding: '5px 10px', color: 'var(--text-color)' }}>
+                            全画像をリセット ({images.length}枚)
+                          </button>
+                        </div>
+                      )}
+                      <div className="image-preview-grid">
+                        {images.map((img, i) => (
+                          <div key={i} className="image-preview-item">
+                            <img src={img} alt="" />
+                            <button
+                              className="btn-danger"
+                              style={{ position: 'absolute', top: '2px', right: '2px', padding: '0 6px', borderRadius: '50%', border: 'none', cursor: 'pointer', height: '20px', width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setImages(prev => prev.filter((_, idx) => idx !== i));
+                              }}
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="form-group">
-                    <label>👁️ プレビュー</label>
-                    <div className="article-body" style={{
-                      padding: '1rem',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '4px',
-                      minHeight: '100px',
-                      backgroundColor: 'var(--bg-color)'
-                    }}>
-                      {createLinks(content, allTitles, title, (t) => {
-                        const target = articles.find(a => a.title === t);
-                        if (target?.id) setSelectedArticleId(target.id);
-                      })}
+                    <div className="form-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+                        <label style={{ margin: 0 }}>記事内容 (Markdown対応)</label>
+                        <div className="marker-tools">
+                          <button onClick={() => insertMarker('yellow')} className="marker-btn" style={{ backgroundColor: '#ffeb3b', color: '#333' }}>黄</button>
+                          <button onClick={() => insertMarker('green')} className="marker-btn" style={{ backgroundColor: '#8bc34a', color: '#333' }}>緑</button>
+                          <button onClick={() => insertMarker('blue')} className="marker-btn" style={{ backgroundColor: '#03a9f4', color: 'white' }}>青</button>
+                          <button onClick={() => insertMarker('red')} className="marker-btn" style={{ backgroundColor: '#f44336', color: 'white' }}>赤</button>
+                        </div>
+                      </div>
+                      <textarea
+                        id="content-area"
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        placeholder="# 見出し1&#10;## 見出し2&#10;- 箇条書き&#10;**太字**&#10;&#10;<yellow>重要な部分</yellow>"
+                      />
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                        💡 Markdown記法（# や - など）が使えます。
+                      </div>
                     </div>
+                    <div className="form-group">
+                      <label>👁️ プレビュー</label>
+                      <div className="article-body" style={{
+                        padding: '1rem',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        minHeight: '100px',
+                        backgroundColor: 'var(--bg-color)'
+                      }}>
+                        {createLinks(content, allTitles, title, (t) => {
+                          const target = articles.find(a => a.title === t);
+                          if (target?.id) setSelectedArticleId(target.id);
+                        })}
+                      </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
                     <button className="btn btn-primary" onClick={handleSave} style={{ flex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
