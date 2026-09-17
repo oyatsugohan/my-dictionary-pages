@@ -597,7 +597,7 @@ function App() {
           <button className={`nav-item ${activeMenu === 'search' ? 'active' : ''}`} onClick={() => { setActiveMenu('search'); setSelectedArticleId(null); }}>
             <Search size={20} /> 記事を検索
           </button>
-          <button className={`nav-item ${activeMenu === 'create' ? 'active' : ''}`} onClick={() => { setActiveMenu('create'); setEditArticleId(null); }}>
+          <button className={`nav-item ${activeMenu === 'create' ? 'active' : ''}`} onClick={() => { setActiveMenu('create'); setEditArticleId(null); setCreateMode('choose')}}>
             <PlusCircle size={20} /> 新規記事作成
           </button>
           <button className={`nav-item ${activeMenu === 'edit' ? 'active' : ''}`} onClick={() => setActiveMenu('edit')}>
