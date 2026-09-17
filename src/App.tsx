@@ -22,6 +22,7 @@ function App() {
   const [sortBy, setSortBy] = useState<'title-asc' | 'title-desc' | 'created-desc' | 'created-asc'>('title-asc');
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
   const [editArticleId, setEditArticleId] = useState<number | null>(null);
+  const [createMode, setCreateMode] = useState<'choose' | 'blank' | 'copy'>('choose');
   const [userAccount, setUserAccount] = useState<AccountInfo | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMethod, setSyncMethod] = useState<'onedrive' | 'cloudflare'>(() => {
@@ -635,7 +636,7 @@ function App() {
           {activeMenu === 'search' && (
             <div>
               <h2>🔍 記事を検索</h2>
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', frexWrap: 'wrap'}}>
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap'}}>
                 <div style={{ flex: '2 1 300px' }}>
                   <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>キーワードで検索 (タイトル・内容)</label>
                   <input 
