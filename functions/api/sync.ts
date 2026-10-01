@@ -6,7 +6,6 @@ interface Env {
 
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
-  const url = new URL(request.url);
   
   // Authenticate via Authorization header
   const authHeader = request.headers.get("Authorization");

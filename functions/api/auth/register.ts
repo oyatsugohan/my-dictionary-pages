@@ -12,9 +12,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const { username, password } = await request.json() as any;
+    const { username, password } = await request.json() as { username?: unknown; password?: unknown };
 
-    if (!username || !password || username.length < 3 || password.length < 8) {
+    if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password || username.length < 3 || password.length < 8) {
       return new Response(JSON.stringify({ error: "Invalid username or password (min 3/8 chars)" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },

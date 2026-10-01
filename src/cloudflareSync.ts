@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { getStoredSession } from "./apiAuth";
+import { getPublicArticles } from "./publicArticles";
 
 /**
  * Cloudflare Pages Functions を利用した同期ロジック
@@ -53,12 +54,15 @@ export const loadFromCloudflare = async () => {
 
     const data = await response.json();
 
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       let updatedCount = 0;
       
       for (const remoteItem of data) {
         // タイトルをキーにして既存の記事を探す
-        const localItem = await db.articles.where("title").equals(remoteItem.title).first();
+        const byPublicId = remoteItem.publicId
+          ? await db.articles.filter(a => a.publicId === remoteItem.publicId).first()
+          : undefined;
+        const localItem = byPublicId || await db.articles.where("title").equals(remoteItem.title).first();
 
         if (!localItem) {
           // ローカルに存在しない場合は新規追加
@@ -73,6 +77,9 @@ export const loadFromCloudflare = async () => {
 
           if (remoteDate > localDate) {
             await db.articles.update(localItem.id!, {
+              title: remoteItem.title,
+              publicId: remoteItem.publicId,
+              visibility: remoteItem.visibility || 'private',
               category: remoteItem.category,
               content: remoteItem.content,
               images: remoteItem.images,
@@ -83,6 +90,14 @@ export const loadFromCloudflare = async () => {
         }
       }
       
+      // Published copies are authoritative; a stale backup must not silently
+      // turn a revoked article back into a public one in the editor.
+      const publicArticles = await getPublicArticles();
+      const publishedIds = new Set(publicArticles.filter(a => a.user_id === session.user.id).map(a => a.id));
+      await db.articles.filter(a => Boolean(a.publicId)).modify(article => {
+        article.visibility = publishedIds.has(article.publicId!) ? 'public' : 'private';
+      });
+
       // 何らかの更新があった場合、マージされた結果をサーバーに反映（双方向同期）
       if (updatedCount > 0) {
         await syncToCloudflare();

@@ -12,9 +12,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const { username, password } = await request.json() as any;
+    const { username, password } = await request.json() as { username?: unknown; password?: unknown };
 
-    if (!username || !password) {
+    if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password) {
       return new Response(JSON.stringify({ error: "Missing username or password" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },

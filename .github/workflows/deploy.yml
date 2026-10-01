@@ -1,12 +1,21 @@
-name = "my-dictionary-pages"
-main = "index.ts"  # 上記で作成したファイルのパス（srcの中なら src/index.ts）
-compatibility_date = "2024-11-01"
-
-[assets]
-directory = "./dist"
-binding = "ASSETS"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "wrangler"
-database_id = "29810d15-4f98-4b82-bebe-dcc7ea16820a"
+name: Checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run check:functions
+      - run: npm run build

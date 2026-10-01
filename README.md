@@ -1,73 +1,51 @@
-# React + TypeScript + Vite
+# オリジナル百科事典
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 18 / TypeScript / Vite と Cloudflare Pages Functions / D1 で動く、個人の辞典と学びの共有アプリです。
 
-Currently, two official plugins are available:
+## 記事の公開・タグ・分析
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 記事の作成・編集画面で「非公開（自分用）」または「公開」を選んで保存します。既存記事と新規記事の初期値は非公開です。公開には百科事典アカウントが必要です。
+- 公開されたユーザー名・タイトル・本文・タグ・画像は、**未ログインの人を含め誰でも**閲覧できます。公開用のコピーだけを `public_articles` に保存し、個人のバックアップからは検索・分析しません。
+- 公開した記事の編集保存は公開内容も更新します。非公開への変更・削除では公開コピーを先に削除し、通信失敗時は変更を中断してエラーを表示します。「みんなの記事」の詳細からも自分の記事を非公開にできます。
+- タグ例：`１年, 数学１, 素因数分解`。カンマ・読点区切り、Enterまたは追加ボタンで登録でき、入力途中のタグも保存します。既存のカテゴリーをそのままタグとして利用します。
+- 「みんなの記事・分析」で全期間・今日・指定日、タグ、キーワードを指定します。日付の基準は公開日／最終更新日、日本時間です。更新履歴の保存ではなく、現在公開中の記事の集計です。
+- ワードクラウドはタイトルと本文の出現回数（上位60語）、共起ネットワークは同じ記事に語の組が登場した記事数（上位20語・50組）を表示します。語の繰り返しで共起件数は増えません。集計表、除外語の指定も利用できます。
+- 日本語の分割にはブラウザの `Intl.Segmenter` を利用し、簡易ストップワードを除きます。タグの語を分割用辞書として使い、「素因数分解」などの専門語を保持します（タイトル・本文に出現した分だけ数えます）。品詞解析や意味解析ではなく、分割結果はブラウザの辞書に依存します。分析データを外部AIに送信しません。
+- 公開記事一覧は開いた時と「再読み込み」で取得します。他の端末での公開取消は再読み込み後に反映されます。
 
-## React Compiler
+## 開発
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Node.js 22.18以降（CIは24）を使用します。
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm ci
+npm run db:init:local
+npm run dev:cf
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+`http://localhost:8788` でローカルD1を使うアプリが起動します。`npm run dev` でViteを起動する場合も、API用に8788ポートのPages開発サーバーが必要です。
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm test
+npm run lint
+npm run check:functions
+npm run build
 ```
+
+APIテストはインメモリSQLiteで実際のSQLを実行し、認証・所有権・公開取消・入力検証を確認します。GitHub Actionsでも上記を実行します。
+
+## 既存環境への反映
+
+1. D1のバックアップを確保し、対象のCloudflareアカウント・DBを確認します。
+2. デプロイ前に `npm run db:init` を実行します。`schema.sql` は `CREATE TABLE/INDEX IF NOT EXISTS` のみで、既存データを消さず、不足していた公開記事テーブルを追加します。既存テーブルに独自の変更がある場合は定義を照合してください。
+3. Cloudflare Pagesでビルドコマンド `npm run build`、出力 `dist`、D1バインディング `DB` を設定してデプロイします。`wrangler.toml` のDB IDは対象環境に合わせます。
+
+このPRのGitHub Actionsは検証のみです。Pagesの既存Git連携を利用してデプロイしてください。
+
+## 個人データとバックアップ
+
+- ブラウザのIndexedDBを百科事典アカウントごとに分離します。ログイン・ログアウトでローカル記事を削除せず、別アカウントに表示しません。
+- 旧版の共通IndexedDBは、更新後最初に利用する百科事典アカウントに引き継ぎ、元DBは復旧用に残します。引き継いだ記事は非公開です。ゲスト利用中の記事を引き継ぐ場合も同じ挙動です。
+- JSON復元は公開状態・公開IDを引き継がず、非公開で追加します。再公開は明示的に選択してください。
+- Cloudflareの個人バックアップはアカウント認証付きです。OneDriveバックアップは引き続き利用できますが、公開には百科事典アカウントへのログインも必要です。
+- 個人バックアップの同期は最終更新時刻によるマージです。同時編集の競合解決や削除履歴の端末間同期は対象外です。公開状態の正本は公開一覧です。Cloudflareから読み込む際に公開一覧と照合します。開いたままの古い端末では再読み込みし、編集フォームの公開設定を確認して保存してください。
