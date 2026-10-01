@@ -210,14 +210,16 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await ensureInitialized();
-    msalInstance.logoutRedirect();
+    await db.articles.clear();
+    clearSession();
+    setAuthSession(null);
   };
 
   const handleAuthLogin = async () => {
    setAuthError('');
    const result = await loginUser(authUsername, authPassword);
    if (result.success && result.session) {
+     await db.articles.clear();
      setAuthSession(result.session);
      setAuthUsername('');
      setAuthPassword('');
