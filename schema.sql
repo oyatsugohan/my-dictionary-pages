@@ -20,3 +20,19 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id)
 );
+
+-- Only explicitly published copies are stored here. Private backups stay in articles_sync.
+CREATE TABLE IF NOT EXISTS public_articles (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '[]',
+    content TEXT NOT NULL,
+    images TEXT NOT NULL DEFAULT '[]',
+    published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS public_articles_published ON public_articles(published_at);
+CREATE INDEX IF NOT EXISTS public_articles_owner ON public_articles(user_id);

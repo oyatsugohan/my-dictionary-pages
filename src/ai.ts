@@ -36,7 +36,7 @@ export const getArticleSuggestions = async (existingTitles: string[], categories
       let errorData;
       try {
         errorData = await response.json();
-      } catch (e) {
+      } catch {
         errorData = { error: { message: `HTTP error ${response.status}` } };
       }
       console.error('Gemini API Error Response:', errorData);

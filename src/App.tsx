@@ -9,8 +9,13 @@ import { syncToCloudflare, loadFromCloudflare } from './cloudflareSync';
 import { registerUser, loginUser, getStoredSession, clearSession, type AuthSession } from './apiAuth';
 import { getArticleSuggestions } from './ai';
 import './App.css';
+import { Community } from './Community';
+import { setPublicArticle } from './publicArticles';
+import type { Article } from './db';
 
-type Menu = 'search' | 'create' | 'edit' | 'delete' | 'stats' | 'setup';
+const EMPTY_ARTICLES: Article[] = [];
+
+type Menu = 'search' | 'create' | 'edit' | 'delete' | 'stats' | 'setup' | 'community';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState<Menu>('search');
@@ -46,13 +51,16 @@ function App() {
   });
   
   // Auth states
-  const [authSession, setAuthSession] = useState<AuthSession | null>(() => getStoredSession());
+  const [authSession] = useState<AuthSession | null>(() => getStoredSession());
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
   
   // Form states
+  const [visibility, setVisibility] = useState<'private' | 'public'>('private');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [categoryList, setCategoryList] = useState<string[]>([]);
@@ -60,7 +68,7 @@ function App() {
   const [images, setImages] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   
-  const articles = useLiveQuery(() => db.articles.toArray()) || [];
+  const articles = useLiveQuery(() => db.articles.toArray()) || EMPTY_ARTICLES;
   const allTitles = articles.map(a => a.title);
   
   // Apply dark mode class to body
@@ -126,7 +134,7 @@ function App() {
     try {
       const suggestions = await getArticleSuggestions(allTitles, uniqueCategories, geminiApiKey);
       setAiSuggestions(suggestions);
-    } catch (err) {
+    } catch {
       alert('提案の取得に失敗しました。APIキーを確認してください。');
     } finally {
       setIsLoadingSuggestions(false);
@@ -136,6 +144,8 @@ function App() {
   const handleApplySuggestion = (suggestedTitle: string) => {
     setActiveMenu('create');
     setEditArticleId(null);
+    setVisibility('private');
+    setCreateMode('blank');
     setTitle(suggestedTitle);
     setCategoryList([]);
     setCategory('');
@@ -144,10 +154,9 @@ function App() {
   };
 
   const handleAddCategory = () => {
-    if (category.trim() && !categoryList.includes(category.trim())) {
-      setCategoryList([...categoryList, category.trim()]);
-      setCategory('');
-    }
+    const tags = category.split(/[,、]/).map(t => t.trim()).filter(Boolean);
+    setCategoryList(previous => [...new Set([...previous, ...tags])]);
+    setCategory('');
   };
 
   const removeCategory = (cat: string) => {
@@ -194,7 +203,8 @@ function App() {
     if (syncMethod === 'onedrive' && userAccount) {
       await syncToOneDrive();
     } else if (syncMethod === 'cloudflare') {
-      await syncToCloudflare();
+      const ok = await syncToCloudflare();
+      if (!ok && authSession) alert('記事はこの端末に保存しましたが、バックアップ同期に失敗しました。ログイン状態と通信を確認してください。');
     }
     setSyncing(false);
   };
@@ -210,20 +220,14 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await db.articles.clear();
-    clearSession();
-    setAuthSession(null);
+    await msalInstance.logoutRedirect();
   };
 
   const handleAuthLogin = async () => {
    setAuthError('');
    const result = await loginUser(authUsername, authPassword);
    if (result.success && result.session) {
-     await db.articles.clear();
-     setAuthSession(result.session);
-     setAuthUsername('');
-     setAuthPassword('');
-     await loadFromCloudflare();
+     window.location.reload();
    } else {
      setAuthError(result.error || 'ログインに失敗しました');
    }
@@ -241,7 +245,7 @@ function App() {
   };
   const handleAuthLogout = () => {
    clearSession();
-   setAuthSession(null);
+   window.location.reload();
   };
 
   // Sync edit form when editArticleId changes
@@ -249,6 +253,8 @@ function App() {
     if (editArticleId) {
       const art = articles.find(a => a.id === editArticleId);
       if (art) {
+        setVisibility(art.visibility || 'private');
+        setSaveError('');
         setTitle(art.title);
         setCategoryList(art.category);
         setCategory('');
@@ -256,6 +262,8 @@ function App() {
         setImages(art.images);
       }
     } else {
+      setVisibility('private');
+      setSaveError('');
       setTitle('');
       setCategoryList([]);
       setCategory('');
@@ -267,6 +275,8 @@ function App() {
 
   const handleReset = () => {
     if (confirm('入力内容をすべて消去してもよろしいですか？')) {
+      setVisibility('private');
+      setSaveError('');
       setTitle('');
       setCategoryList([]);
       setCategory('');
@@ -277,55 +287,43 @@ function App() {
   };
 
   const handleSave = async () => {
-    if (!title || !content) {
-      alert('タイトルと内容を入力してください');
+    if (saving) return;
+    setSaveError('');
+    if (!title.trim() || !content.trim()) {
+      setSaveError('タイトルと内容を入力してください。');
       return;
     }
-
-    const categories = categoryList.length > 0 ? categoryList : ['未分類'];
-    const now = new Date().toLocaleString();
-
-    if (editArticleId) {
-      await db.articles.update(editArticleId, {
-        title,
-        category: categories,
-        content,
-        images,
-        updated: now
-      });
-      alert('更新しました');
-      setEditArticleId(null);
+    setSaving(true);
+    try {
+      const existing = await db.articles.where('title').equals(title.trim()).first();
+      if (existing && existing.id !== editArticleId) throw new Error('同じタイトルの記事が既に存在します。');
+      const previous = editArticleId ? await db.articles.get(editArticleId) : undefined;
+      const tags = [...new Set([...categoryList, ...category.split(/[,、]/)].map(t => t.trim()).filter(Boolean))];
+      if (tags.length > 20 || tags.some(t => t.length > 40)) throw new Error('タグは20個、各40字以内で入力してください。');
+      const now = new Date().toISOString();
+      const article: Article = {
+        title: title.trim(), category: tags, content, images,
+        created: previous?.created || now, updated: now,
+        publicId: previous?.publicId || (visibility === 'public' ? crypto.randomUUID() : undefined),
+        visibility,
+      };
+      await setPublicArticle(article, visibility);
+      if (editArticleId) await db.articles.update(editArticleId, { ...article });
+      else await db.articles.add(article);
+      setEditArticleId(null); setTitle(''); setContent(''); setImages([]); setCategoryList([]); setCategory(''); setVisibility('private');
       setActiveMenu('search');
-    } else {
-      const existing = await db.articles.where('title').equals(title).first();
-      if (existing) {
-        alert('同じタイトルの記事が既に存在します');
-        return;
-      }
-      await db.articles.add({
-        title,
-        category: categories,
-        content,
-        images,
-        created: now
-      });
-      alert('保存しました');
-      setTitle('');
-      setCategoryList([]);
-      setCategory('');
-      setContent('');
-      setImages([]);
-      setActiveMenu('search');
-    }
-    
-    // Auto sync to cloud
-    await triggerSync();
+      await triggerSync();
+    } catch (e) {
+      setSaveError((e as Error).message);
+    } finally { setSaving(false); }
   };
 
   const handleDuplicate = (id: number) => {
     const art = articles.find(a => a.id === id);
     if (art) {
       setEditArticleId(null);
+      setVisibility('private');
+      setCreateMode('blank');
       setTitle(`${art.title} (コピー)`);
       setCategoryList(art.category);
       setCategory('');
@@ -338,6 +336,10 @@ function App() {
 
   const handleDelete = async (id: number) => {
     if (confirm('本当に削除しますか？')) {
+      try {
+        const article = await db.articles.get(id);
+        if (article?.publicId) await setPublicArticle(article, 'private');
+      } catch (e) { alert((e as Error).message); return; }
       await db.articles.delete(id);
       if (selectedArticleId === id) setSelectedArticleId(null);
       await triggerSync();
@@ -427,6 +429,7 @@ function App() {
     a.href = url;
     a.download = `encyclopedia_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -441,7 +444,7 @@ function App() {
               if (item.title && item.content) {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { id, ...rest } = item;
-                await db.articles.add(rest);
+                await db.articles.add({ ...rest, publicId: undefined, visibility: 'private' });
               }
             }
             alert('インポート完了しました');
@@ -597,6 +600,7 @@ function App() {
         )}
 
         <nav className="nav-menu">
+          <button className={`nav-item ${activeMenu === 'community' ? 'active' : ''}`} onClick={() => setActiveMenu('community')}><Book size={20} /> みんなの記事・分析</button>
           <button className={`nav-item ${activeMenu === 'search' ? 'active' : ''}`} onClick={() => { setActiveMenu('search'); setSelectedArticleId(null); }}>
             <Search size={20} /> 記事を検索
           </button>
@@ -635,6 +639,7 @@ function App() {
 
       <main className="main-content">
         <div className="container">
+          {activeMenu === 'community' && <Community />}
           {activeMenu === 'search' && (
             <div>
               <h2>🔍 記事を検索</h2>
@@ -649,7 +654,7 @@ function App() {
                   />
                 </div>
                 <div style={{ flex: '1 1 150px' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>カテゴリー</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>タグ</label>
                   <select 
                     value={categorySearch}
                     onChange={(e) => setCategorySearch(e.target.value)}
@@ -665,7 +670,7 @@ function App() {
                   <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>並び替え</label>
                   <select 
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                     style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
                   >
                     <option value="title-asc">50音順 (昇順)</option>
@@ -690,7 +695,7 @@ function App() {
                         {articles.find(a => a.id === selectedArticleId)?.title}
                       </h1>
                       <div style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                        カテゴリー: {articles.find(a => a.id === selectedArticleId)?.category.join(', ')} | 
+                        タグ: {articles.find(a => a.id === selectedArticleId)?.category.join(', ')} |
                         作成: {articles.find(a => a.id === selectedArticleId)?.created}
                       </div>
                       
@@ -834,7 +839,9 @@ function App() {
                     style={{ flex: '1 1 200px', textAlign: 'center', padding: '2rem', cursor: 'pointer' }}
                     onClick={() => {
                       setCreateMode('blank');
-                      setTitle('');
+                      setVisibility('private');
+      setSaveError('');
+      setTitle('');
                       setCategoryList([]);
                       setCategory('');
                       setContent('');
@@ -886,7 +893,7 @@ function App() {
                       />
                     </div>
                     <div style={{ flex: '1 1 150px' }}>
-                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>カテゴリー</label>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>タグ</label>
                       <select
                         value={editCategorySearch}
                         onChange={(e) => setEditCategorySearch(e.target.value)}
@@ -902,7 +909,7 @@ function App() {
                       <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>並び替え</label>
                       <select
                         value={editSortBy}
-                        onChange={(e) => setEditSortBy(e.target.value as any)}
+                        onChange={(e) => setEditSortBy(e.target.value as typeof editSortBy)}
                         style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '1rem', backgroundColor: 'var(--sidebar-bg)', color: 'var(--text-color)' }}
                       >
                         <option value="title-asc">50音順 (昇順)</option>
@@ -946,18 +953,26 @@ function App() {
                 ) : (
                   <div className="form">
                     <div className="form-group">
+                      <label htmlFor="visibility">公開設定</label>
+                      <select id="visibility" value={visibility} disabled={saving} onChange={e => setVisibility(e.target.value as 'private' | 'public')}>
+                        <option value="private">非公開（自分用）</option><option value="public">公開（全員が閲覧できます）</option>
+                      </select>
+                      <p className="muted">公開すると、ユーザー名・本文・タグ・画像をログインしていない人も閲覧・分析できます。保存すると設定が反映されます。</p>
+                      {!authSession && <p className="muted">公開するには百科事典のアカウントでログインしてください。</p>}
+                    </div>
+                    <div className="form-group">
                       <label>記事タイトル</label>
                       <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="記事タイトルを書く欄" />
                     </div>
                     <div className="form-group">
-                      <label>カテゴリー</label>
+                      <label>タグ</label>
                       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <input
                           type="text"
                           value={category}
                           onChange={(e) => setCategory(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-                          placeholder="例: 技術 (入力してEnter)"
+                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAddCategory(); }}
+                          placeholder="例: １年, 数学１, 素因数分解"
                         />
                         <button className="btn btn-primary" onClick={handleAddCategory}>追加</button>
                       </div>
@@ -1051,13 +1066,14 @@ function App() {
                       </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-                    <button className="btn btn-primary" onClick={handleSave} style={{ flex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                      <Save size={20} /> {editArticleId ? '更新を保存' : '記事を保存'}
+                    <button className="btn btn-primary" disabled={saving} onClick={handleSave} style={{ flex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                      <Save size={20} /> {saving ? '保存中…' : editArticleId ? '更新を保存' : '記事を保存'}
                     </button>
                     <button className="btn" onClick={handleReset} style={{ flex: 1, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-color)' }}>
                       リセット
                     </button>
                   </div>
+                  {saveError && <p role="alert" className="error-message">{saveError}</p>}
                   {editArticleId && (
                     <button className="btn" onClick={() => setEditArticleId(null)} style={{ width: '100%', marginTop: '0.5rem' }}>キャンセル</button>
                   )}
@@ -1093,7 +1109,7 @@ function App() {
                   <div className="stat-value">{articles.length}</div>
                 </div>
                 <div className="stat-card">
-                  <div className="stat-label">カテゴリー数</div>
+                  <div className="stat-label">タグ数</div>
                   <div className="stat-value">{new Set(articles.flatMap(a => a.category)).size}</div>
                 </div>
                 <div className="stat-card">
@@ -1106,7 +1122,7 @@ function App() {
                 </div>
               </div>
               
-              <h3 style={{ marginTop: '2rem' }}>カテゴリー別記事数</h3>
+              <h3 style={{ marginTop: '2rem' }}>タグ別記事数</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {Object.entries(
                   articles.flatMap(a => a.category).reduce((acc, cat) => {
@@ -1275,7 +1291,7 @@ function App() {
                   <h3>☁️ Cloudflare 同期設定</h3>
                   <p>
                     Cloudflare Pages の D1 データベースを使用して、データを安全にバックアップします。<br />
-                    このブラウザ固有の「同期ID」を控えておけば、他のブラウザや万が一のデータ復旧時に同じデータを読み込めます。
+                    同じ百科事典アカウントでログインすると、他のブラウザからもバックアップを読み込めます。
                   </p>
                   
 
@@ -1293,7 +1309,7 @@ function App() {
                     <div>
                       <strong>ステータス: 有効</strong>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        同期IDに基づいて自動的にデータのバックアップと読み込みが行われます。
+                        ログイン中のアカウントにデータをバックアップします。公開設定は記事ごとに選べます。
                       </div>
                     </div>
                   </div>

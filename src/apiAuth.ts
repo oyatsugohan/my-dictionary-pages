@@ -20,8 +20,9 @@ export const getStoredSession = (): AuthSession | null => {
   const stored = localStorage.getItem("auth_session");
   if (stored) {
     try {
-      return JSON.parse(stored);
-    } catch (e) {
+      const value = JSON.parse(stored);
+      return typeof value?.token === 'string' && typeof value?.user?.id === 'string' && typeof value?.user?.username === 'string' ? value : null;
+    } catch {
       return null;
     }
   }
@@ -53,7 +54,7 @@ export const registerUser = async (username: string, password: string): Promise<
     } else {
       return { success: false, error: data.error || "Registration failed" };
     }
-  } catch (err) {
+  } catch {
     return { success: false, error: "Network error" };
   }
 };
@@ -78,7 +79,7 @@ export const loginUser = async (username: string, password: string): Promise<{ s
     } else {
       return { success: false, error: data.error || "Login failed" };
     }
-  } catch (err) {
+  } catch {
     return { success: false, error: "Network error" };
   }
 };
