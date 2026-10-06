@@ -333,6 +333,13 @@ function App() {
       setSelectedArticleId(null);
     }
   };
+  
+  const toggleFavorite = async (id: number) => {
+    const art = articles.find(a => a.id === id);
+    if (!art) return;
+    await db.articles.update(id, {favorite: !art.favorite});
+    await triggerSync();
+  }
 
   const handleDelete = async (id: number) => {
     if (confirm('本当に削除しますか？')) {

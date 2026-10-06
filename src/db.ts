@@ -5,6 +5,7 @@ export interface Article {
   id?: number;
   publicId?: string;
   visibility?: 'private' | 'public';
+  favorite?: boolean;
   title: string;
   category: string[];
   content: string;
