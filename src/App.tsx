@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff, ExternalLink, Sun, Moon, RefreshCw, Clock, Sparkles, Settings as SettingsIcon, CheckCircle } from 'lucide-react';
+import { Book, Search, PlusCircle, Edit3, Trash2, BarChart2, Save, Download, Upload, Image as ImageIcon, User, Cloud, CloudOff, ExternalLink, Sun, Moon, RefreshCw, Clock, Sparkles, Settings as SettingsIcon, CheckCircle, Star } from 'lucide-react';
 import { type AccountInfo } from '@azure/msal-browser';
 import { db } from './db';
 import { createLinks } from './utils';
@@ -497,6 +497,7 @@ function App() {
       return (matchesTitle || matchesContent || matchesCategorySearch) && matchesCategoryFilter;
     })
     .sort((a, b) => {
+      if (!!a.favorite !== !!b.favorite) return a.favorite ? -1 : 1;
       if (sortBy === 'title-asc') {
         return a.title.localeCompare(b.title, 'ja');
       } else if (sortBy === 'title-desc') {
@@ -730,6 +731,21 @@ function App() {
                 <>
                   {!titleSearch && categorySearch === 'すべて' && (
                     <div className="dashboard-sections">
+                      {articles.some(a => a.favorite) && (
+                        <section className="dashboard-section">
+                          <h3><Star size={18} style={{ verticalAlign: 'middle', marginRight: '8px', color: '#f5c518' }} fill="#f5c518" /> お気に入り</h3>
+                          <div className="article-grid">
+                            {articles.filter(a => a.favorite).map(art => (
+                              <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)}>
+                                <h3 style={{ margin: '0 0 0.5rem 0' }}>{art.title}</h3>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                  {art.updated || art.created}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
                       <section className="dashboard-section">
                         <h3><Clock size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} /> 最近更新された記事</h3>
                         <div className="article-grid">
@@ -812,12 +828,20 @@ function App() {
                   <div className="article-grid">
                     {filteredArticles.map(art => (
                       <div key={art.id} className="article-card" onClick={() => setSelectedArticleId(art.id!)} style={{ position: 'relative' }}>
-                        <h3 style={{ margin: '0 0 0.5rem 0', paddingRight: '30px' }}>{art.title}</h3>
+                        <h3 style={{ margin: '0 0 0.5rem 0', paddingRight: '60px' }}>{art.title}</h3>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                           {art.category.slice(0, 2).join(', ')}{art.category.length > 2 ? '...' : ''}
                         </div>
-                        <button 
-                          className="btn-icon" 
+                        <button
+                          className="btn-icon"
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(art.id!); }}
+                          title={art.favorite ? 'お気に入りを外す' : 'お気に入りに追加'}
+                          style={{ position: 'absolute', top: '10px', right: '36px', padding: '4px' }}
+                        >
+                          <Star size={14} fill={art.favorite ? '#f5c518' : 'none'} color={art.favorite ? '#f5c518' : 'currentColor'} />
+                        </button>
+                        <button
+                          className="btn-icon"
                           onClick={(e) => { e.stopPropagation(); handleDuplicate(art.id!); }}
                           title="この記事をコピーして作成"
                           style={{ position: 'absolute', top: '10px', right: '10px', padding: '4px' }}
