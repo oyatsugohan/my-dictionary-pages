@@ -5,6 +5,7 @@ import { analyzeTexts, japanDate } from './mining';
 import { getStoredSession } from './apiAuth';
 import { db } from './db';
 import { syncToCloudflare } from './cloudflareSync';
+import { Star } from 'lucide-react'
 
 export function Community() {
   const [articles, setArticles] = useState<PublicArticle[]>([]);
@@ -21,6 +22,16 @@ export function Community() {
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const userId = getStoredSession()?.user.id;
+  const favKey = userId ? `community_favorites_${userId}` : 'community_favorites_guest';
+  const [favorites, setFavorites] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem(favKey) || '[]')));
+  const toggleFavorite = (id: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      localStorage.setItem(favKey, JSON.stringify([...next]));
+      return next;
+    });
+  };
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError(''); setArticles([]);
@@ -29,6 +40,7 @@ export function Community() {
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [revision]);
+//行その２
   const tags = useMemo(() => [...new Set(articles.flatMap(a => a.category))].sort(), [articles]);
   const filtered = useMemo(() => articles.filter(a => {
     const targetDate = period === 'today' ? japanDate(new Date().toISOString()) : date;
@@ -94,6 +106,11 @@ export function Community() {
       <ReactMarkdown>{detail.content}</ReactMarkdown>
       {detail.images.filter(src => /^data:image\/(png|jpeg|gif|webp);base64,/.test(src)).map((src, i) => <img className="public-image" key={i} src={src} alt={`${detail.title}の添付画像 ${i + 1}`} />)}
       {detail.user_id === userId && <button className="btn" disabled={busy} onClick={() => unpublish(detail)}>非公開にする</button>}
-    </article> : <div className="article-grid">{filtered.map(a => <button key={a.id} className="article-card public-card" onClick={() => setSelected(a.id)}><h3>{a.title}</h3><p className="muted">{a.username} · {japanDate(a.published_at)}</p><p>{a.category.map(t => <span className="tag" key={t}>{t}</span>)}</p><p>{a.content.slice(0, 100)}</p></button>)}</div>)}
+    </article> : <div className="article-grid">{sortedFiltered.map(a => <div key={a.id} className="article-card public-card" role="button" tabIndex={0} onClick={() => setSelected(a.id)} onKeyDown={e => e.key === 'Enter' && setSelected(a.id)} style={{ position: 'relative', cursor: 'pointer' }}>
+                  <button onClick={e => { e.stopPropagation(); toggleFavorite(a.id); }} title={favorites.has(a.id) ? 'お気に入りを外す' : 'お気に入りに追加'} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                    <Star size={16} fill={favorites.has(a.id) ? '#f5c518' : 'none'} color={favorites.has(a.id) ? '#f5c518' : 'currentColor'} />
+                  </button>
+                  <h3 style={{ paddingRight: '24px' }}>{a.title}</h3><p className="muted">{a.username} · {japanDate(a.published_at)}</p><p>{a.category.map(t => <span className="tag" key={t}>{t}</span>)}</p><p>{a.content.slice(0, 100)}</p>
+                </div>)}</div>)}
   </section>;
 }
