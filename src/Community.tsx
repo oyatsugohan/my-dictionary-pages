@@ -27,7 +27,11 @@ export function Community() {
   const toggleFavorite = (id: string) => {
     setFavorites(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       localStorage.setItem(favKey, JSON.stringify([...next]));
       return next;
     });
@@ -107,10 +111,10 @@ export function Community() {
       {detail.images.filter(src => /^data:image\/(png|jpeg|gif|webp);base64,/.test(src)).map((src, i) => <img className="public-image" key={i} src={src} alt={`${detail.title}の添付画像 ${i + 1}`} />)}
       {detail.user_id === userId && <button className="btn" disabled={busy} onClick={() => unpublish(detail)}>非公開にする</button>}
     </article> : <div className="article-grid">{sortedFiltered.map(a => <div key={a.id} className="article-card public-card" role="button" tabIndex={0} onClick={() => setSelected(a.id)} onKeyDown={e => e.key === 'Enter' && setSelected(a.id)} style={{ position: 'relative', cursor: 'pointer' }}>
-                  <button onClick={e => { e.stopPropagation(); toggleFavorite(a.id); }} title={favorites.has(a.id) ? 'お気に入りを外す' : 'お気に入りに追加'} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
-                    <Star size={16} fill={favorites.has(a.id) ? '#f5c518' : 'none'} color={favorites.has(a.id) ? '#f5c518' : 'currentColor'} />
-                  </button>
-                  <h3 style={{ paddingRight: '24px' }}>{a.title}</h3><p className="muted">{a.username} · {japanDate(a.published_at)}</p><p>{a.category.map(t => <span className="tag" key={t}>{t}</span>)}</p><p>{a.content.slice(0, 100)}</p>
-                </div>)}</div>)}
+                 <button onClick={e => { e.stopPropagation(); toggleFavorite(a.id); }} title={favorites.has(a.id) ? 'お気に入りを外す' : 'お気に入りに追加'} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                  <Star size={16} fill={favorites.has(a.id) ? '#f5c518' : 'none'} color={favorites.has(a.id) ? '#f5c518' : 'currentColor'} />
+                 </button>
+                 <h3 style={{ paddingRight: '24px' }}>{a.title}</h3><p className="muted">{a.username} · {japanDate(a.published_at)}</p><p>{a.category.map(t => <span className="tag" key={t}>{t}</span>)}</p><p>{a.content.slice(0, 100)}</p>
+                 </div>)}</div>)}
   </section>;
 }
