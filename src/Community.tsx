@@ -44,13 +44,13 @@ export function Community() {
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [revision]);
-//行その２
   const tags = useMemo(() => [...new Set(articles.flatMap(a => a.category))].sort(), [articles]);
   const filtered = useMemo(() => articles.filter(a => {
     const targetDate = period === 'today' ? japanDate(new Date().toISOString()) : date;
     return (period === 'all' || japanDate(a[dateBasis]) === targetDate) &&
       (!tag || a.category.includes(tag)) && `${a.title} ${a.content} ${a.username}`.toLowerCase().includes(query.toLowerCase());
   }), [articles, period, date, dateBasis, tag, query]);
+  const sortedFiltered = [...filtered].sort((a, b) => Number(favorites.has(b.id)) - Number(favorites.has(a.id)));
   const analysis = useMemo(() => analyzeTexts(filtered.map(a => `${a.title}\n${a.content}`), excluded, tags), [filtered, excluded, tags]);
   const nodes = analysis.words.slice(0, 20).map((word, i, all) => ({ ...word,
     x: 420 + 290 * Math.cos(i * 2 * Math.PI / all.length - Math.PI / 2),
